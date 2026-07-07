@@ -225,7 +225,7 @@ npm run testnet:smoke
 
 The testnet smoke command requires a real FNN RPC endpoint and is documented in [docs/testnet-smoke.md](docs/testnet-smoke.md). Without that endpoint, it exits with a clear configuration error instead of pretending demo mode is a chain-backed test.
 
-Latest smoke result: on July 7, 2026, the adapter passed `node_info`, `list_channels`, and optional `new_invoice` against a disposable local FNN `v0.8.1` node using the official testnet config. Payment settlement still requires a funded channel.
+Latest smoke result: on July 7, 2026, the adapter and Merchant API passed live-mode invoice creation against a local FNN `v0.8.1` testnet node using the official config. The node connected to a bootnode peer and saw 46 graph nodes plus 98 graph channels. Payment settlement still requires a funded channel.
 
 ## Production Notes
 

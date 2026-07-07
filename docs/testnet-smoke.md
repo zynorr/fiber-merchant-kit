@@ -83,3 +83,27 @@ Result:
 | Optional `new_invoice` | Passed, created a testnet invoice for amount `1000` |
 
 This proves the Merchant Kit live RPC adapter can talk to a real FNN testnet node and create invoices. It does not prove payment settlement, because the disposable node had no funded channels. A full settlement test still requires two funded testnet nodes or an existing funded channel.
+
+## Extended Live API Result
+
+On the same date, the API server was started in live mode against the local FNN testnet node:
+
+```bash
+PORT=3091
+FIBER_NODE_RPC_URL=http://127.0.0.1:8227
+FIBER_NODE_CURRENCY=Fibt
+FIBER_MERCHANT_DB_PATH=<temp-db>
+```
+
+Observed result:
+
+| Check | Result |
+|---|---|
+| FNN peer connection | Passed, connected to 1 bootnode peer |
+| FNN graph sync | Passed, saw 46 graph nodes and 98 graph channels |
+| API health | Passed, returned `ok` with Fiber version `0.8.1` |
+| `POST /api/v1/invoices` | Passed, created invoice `3d3085d7-e2ac-4162-b1fa-d2c969a196a4` |
+| `GET /api/v1/invoices/:id` | Passed, returned cached merchant invoice with status `pending` |
+| Adapter `get_invoice` | Passed, fetched the FNN invoice back as `Open` |
+
+This verifies the end-to-end path from Merchant API route to real FNN testnet RPC. Payment settlement remains the next milestone and requires a funded channel.
