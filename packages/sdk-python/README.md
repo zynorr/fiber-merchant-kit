@@ -1,6 +1,6 @@
-# Fiber Merchant — Python SDK
+# Fiber Merchant -- Python SDK
 
-Python client for the Fiber Merchant API — accept Fiber Network payments in your Python applications.
+Python client for the Fiber Merchant API -- accept Fiber Network payments in Python applications.
 
 ## Installation
 
@@ -18,18 +18,17 @@ client = MerchantClient(
     api_key="fm_sk_YOUR_API_KEY"
 )
 
-# Create an invoice
 invoice = client.invoices.create(
     amount="5000",
     currency="CKB",
     description="Order #1234"
 )
+
 print(f"Invoice: {invoice.id}")
 print(f"Pay at: {invoice.invoice_address}")
 
-# Check status
-status = client.invoices.get(invoice.id)
-print(f"Status: {status.status}")
+latest = client.invoices.get(invoice.id)
+print(f"Status: {latest.status}")
 
 client.close()
 ```

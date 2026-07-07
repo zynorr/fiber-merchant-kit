@@ -1,308 +1,158 @@
 # Fiber Merchant Kit
 
-Payment processing infrastructure for the Fiber Network. A complete toolkit for merchants to accept Fiber payments, with a REST API, webhook engine, admin dashboard, and multi-language SDKs.
+Stripe-style merchant infrastructure for the Fiber Network: REST API, webhook delivery, admin dashboard, demo checkout, and TypeScript/Python SDKs.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.4-3178C6?logo=typescript)](https://www.typescriptlang.org/)
-[![Python](https://img.shields.io/badge/Python-3.9-3776AB?logo=python)](https://www.python.org/)
-[![React](https://img.shields.io/badge/React-18-61DAFB?logo=react)](https://react.dev/)
+This repository is organized so hackathon judges can review the product, architecture, and implementation evidence quickly.
 
----
+## Judge Fast Path
 
-## Table of Contents
+| Time | What To Open | Why It Matters |
+|---|---|---|
+| 2 minutes | [JUDGES.md](JUDGES.md) | The fastest review path, demo script, and evidence map |
+| 5 minutes | [docs/architecture.md](docs/architecture.md) | System design, data flows, boundaries, and tradeoffs |
+| 10 minutes | [packages/api-server/src/routes/invoices.ts](packages/api-server/src/routes/invoices.ts) and [packages/api-server/src/services/webhook-delivery.ts](packages/api-server/src/services/webhook-delivery.ts) | Core invoice lifecycle and webhook reliability |
+| 15 minutes | Run `npm run dev` | API, dashboard, and demo store running together |
 
-- [What & Why](#what--why)
-- [Architecture](#architecture)
-- [Project Structure](#project-structure)
-- [Quick Start (3 Minutes)](#quick-start-3-minutes)
-- [Dashboard Preview](#dashboard-preview)
-- [API Overview](#api-overview)
-- [Webhooks](#webhooks)
-- [SDK Usage](#sdk-usage)
-- [Demo Mode vs Production](#demo-mode-vs-production)
-- [Roadmap](#roadmap)
-- [Built For](#built-for)
+## What This Solves
 
----
+Fiber Network is fast and low-cost, but raw Fiber node RPC is not merchant-friendly. A merchant would still need invoice lifecycle handling, payment polling, webhooks, retries, a dashboard, SDKs, and persistence.
 
-## What & Why
+Fiber Merchant Kit packages those missing pieces into one developer-facing system.
 
-The **Fiber Network** provides fast, low-cost payment channels on Nervos CKB. Merchants who want to accept Fiber payments face a critical gap:
-
-| Problem | How Fiber Merchant Kit Solves It |
+| Merchant Need | Delivered In This Repo |
 |---|---|
-| No merchant-friendly API -- raw FNN RPC requires deep payment channel knowledge | **REST API** -- create invoices, check payments, issue refunds with simple HTTP calls |
-| No webhook system -- merchants must build their own polling infrastructure | **Webhook Engine** -- HMAC-signed events with automatic retries and delivery logs |
-| No admin interface -- no way to see transaction history or balances | **Admin Dashboard** -- full UI for managing invoices, webhooks, channels |
-| Only Rust RPC -- JS/Python developers have no native SDK | **TypeScript & Python SDKs** -- drop-in libraries with typed interfaces |
+| Create payment requests | REST API and SDK invoice creation |
+| Know when a payment settles | Auto-polling invoice status updates |
+| Integrate into order systems | HMAC-signed webhooks with retry and delivery logs |
+| Operate the system | React admin dashboard for invoices, webhooks, transactions, balances |
+| Demo without node setup | Built-in demo Fiber client mode |
+| Integrate from apps | TypeScript SDK and Python SDK |
 
-In short, this is the Stripe of Fiber Network payments -- everything a merchant needs to go from zero to accepting Fiber payments in minutes.
+## Architecture At A Glance
 
----
+```mermaid
+flowchart LR
+  MerchantApp["Merchant App"] --> TSSDK["TypeScript SDK"]
+  MerchantApp --> PySDK["Python SDK"]
+  Admin["Admin Dashboard"]
+  Store["Demo Store"]
 
-## Architecture
+  TSSDK --> API["Merchant API Server"]
+  PySDK --> API
+  Admin --> API
+  Store --> API
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                         Fiber Merchant Kit                           │
-├─────────────────────────────────────────────────────────────────────┤
-│                                                                     │
-│  ┌──────────────┐   ┌──────────────┐   ┌──────────────────────────┐ │
-│  │  TypeScript  │   │    Python    │   │     Admin Dashboard      │ │
-│  │     SDK      │   │     SDK      │   │   (React + Tailwind)     │ │
-│  │ @fiber-      │   │ fiber-       │   │   localhost:5173         │ │
-│  │ merchant/sdk │   │ merchant     │   │                          │ │
-│  └──────┬───────┘   └──────┬───────┘   └──────────┬───────────────┘ │
-│         │                  │                       │                 │
-│         └──────────────────┼───────────────────────┘                 │
-│                            │ HTTP API (Bearer Auth)                  │
-│                            v                                         │
-│  ┌────────────────────────────────────────────────────────────────┐ │
-│  │                   Merchant API Server                           │ │
-│  │  Express + SQLite + Zod Validation + Auth Middleware            │ │
-│  │  localhost:3001                                                 │ │
-│  │                                                                │ │
-│  │  ┌─────────────┐  ┌──────────────┐  ┌──────────────────────┐  │ │
-│  │  │ Invoice     │  │ Webhook      │  │ Balance & Stats      │  │ │
-│  │  │ Management  │  │ Engine (HMAC │  │ (Channel Monitoring) │  │ │
-│  │  │ (CRUD)      │  │ + Retry)     │  │                      │  │ │
-│  │  └──────┬──────┘  └──────┬───────┘  └──────────┬───────────┘  │ │
-│  └─────────┼───────────────┼──────────────────────┼──────────────┘ │
-│            │               │                      │                 │
-│            v               v                      v                 │
-│  ┌────────────────────────────────────────────────────────────────┐ │
-│  │                    SQLite Database                               │ │
-│  │  merchants - invoices - webhooks - webhook_deliveries - txns   │ │
-│  └────────────────────────────────────────────────────────────────┘ │
-│                                                                     │
-│            │                           │                             │
-│            v                           v                             │
-│  ┌─────────────────────┐   ┌─────────────────────────────────────┐ │
-│  │  Fiber Network Node │   │  Demo Storefront                    │ │
-│  │  (FNN JSON-RPC)     │   │  (React, localhost:5174)            │ │
-│  │                     │   │                                     │ │
-│  │  invoice.new_invoice│   │  End-to-end checkout flow           │ │
-│  │  invoice.get_invoice│   │  showing Fiber payment UX           │ │
-│  │  channel.list_...   │   │                                     │ │
-│  │  payment.send_...   │   │                                     │ │
-│  └─────────────────────┘   └─────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────────────────────┘
+  API --> DB[("SQLite / sql.js")]
+  API --> Fiber["Fiber Node RPC or Demo Fiber Client"]
+  API --> Webhooks["Merchant Webhook Endpoints"]
+
+  subgraph APIBox["API Server Responsibilities"]
+    Invoice["Invoice Lifecycle"]
+    Delivery["Webhook Delivery"]
+    Stats["Stats and Balances"]
+    Auth["API Key Auth and Validation"]
+  end
+
+  API --> Invoice
+  API --> Delivery
+  API --> Stats
+  API --> Auth
 ```
 
-### Key Design Decisions
+The server is the trust boundary. Browser apps and SDKs never talk directly to the Fiber node. That keeps node credentials server-side, allows durable webhook delivery, and gives merchants a stable API.
 
-| Decision | Rationale |
+Full architecture: [docs/architecture.md](docs/architecture.md)
+
+## Repository Map
+
+| Path | Purpose |
 |---|---|
-| **Proxy Architecture** | Browser never talks to FNN directly -- prevents credential exposure, enables webhooks |
-| **SQLite (sql.js WASM)** | Zero-config, no external DB needed, file-based backups |
-| **Auto-polling** | GET /invoices/:id polls FNN for status, auto-updates DB and fires webhooks |
-| **Exponential Backoff Retry** | Webhooks: 1s to 2s to 4s to 8s to 16s, up to 5 attempts, at-least-once delivery |
-| **Demo Mode** | Works without a real Fiber node -- simulated responses for instant testing |
+| [packages/api-server](packages/api-server) | Express API, auth, validation, SQLite persistence, Fiber RPC wrapper, webhook engine |
+| [packages/admin-dashboard](packages/admin-dashboard) | Merchant operations UI built with React and Tailwind |
+| [packages/demo-store](packages/demo-store) | End-to-end checkout demo that creates and polls invoices |
+| [packages/sdk-typescript](packages/sdk-typescript) | Typed TypeScript SDK for merchant apps |
+| [packages/sdk-python](packages/sdk-python) | Python SDK with webhook signature helper |
+| [docs/api-reference.md](docs/api-reference.md) | Endpoint reference and response shapes |
+| [docs/getting-started.md](docs/getting-started.md) | Local setup walkthrough |
+| [JUDGES.md](JUDGES.md) | Hackathon review guide |
 
----
+## Quick Start
 
-## Project Structure
+Prerequisites: Node.js 18+ and npm 9+.
 
-```
-fiber-merchant-kit/
-|
-+-- packages/
-|   +-- sdk-typescript/       # TypeScript SDK (@fiber-merchant/sdk)
-|   |   +-- src/              # MerchantClient -- invoices, webhooks, balance, stats
-|   |
-|   +-- sdk-python/           # Python SDK (fiber-merchant)
-|   |   +-- src/fiber_merchant/  # Python MerchantClient (httpx-based)
-|   |
-|   +-- api-server/           # REST API Server (Express + SQLite + Webhooks)
-|   |   +-- src/
-|   |   |   +-- routes/       # invoices, webhooks, merchant (balance/stats)
-|   |   |   +-- db/           # SQLite schema, queries, database wrapper
-|   |   |   +-- services/     # Fiber node RPC client, webhook delivery engine
-|   |   |   +-- middleware/   # API key authentication
-|   |   |   +-- lib/          # Utilities (camelCase converter, fiber client factory)
-|   |   |   +-- __tests__/    # Unit tests (vitest)
-|   |   +-- .env.example
-|   |
-|   +-- admin-dashboard/      # Merchant Admin Dashboard (React + Tailwind)
-|   |   +-- src/
-|   |   |   +-- pages/        # Dashboard, Invoices, Webhooks, Transactions, Balance
-|   |   |   +-- components/   # Layout, UI primitives (Button, Card, DataTable, etc.)
-|   |   |   +-- App.tsx       # Root with routing and auth state
-|   |   +-- .env.example
-|   |
-|   +-- demo-store/           # Demo E-commerce Storefront (React + Tailwind)
-|       +-- src/
-|       |   +-- App.tsx       # Full checkout flow: cart to payment to confirmation
-|       +-- .env.example
-|
-+-- docs/
-|   +-- api-reference.md      # Full API reference with request/response examples
-|   +-- architecture.md       # Detailed architecture and data flow
-|   +-- getting-started.md    # Step-by-step setup guide
-|
-+-- start.sh                  # One-command startup (macOS/Linux)
-+-- start.ps1                 # One-command startup (Windows)
-+-- test-api.ps1              # Automated API test script
-+-- API.md                    # Quick API reference
-+-- package.json              # npm workspaces root
+```bash
+npm install
+npm run dev
 ```
 
----
-
-## Quick Start (3 Minutes)
-
-### Prerequisites
-
-- Node.js 18+ and npm 9+
-- No Fiber node needed -- demo mode works out of the box
-
-### Step 1: Install & Start Everything
+Or use the platform scripts:
 
 ```bash
 # macOS / Linux
-chmod +x start.sh
 ./start.sh
 
 # Windows PowerShell
 .\start.ps1
 ```
 
-This installs dependencies and starts all three services:
+The dev command starts:
 
-| Service | URL | Purpose |
+| Service | URL | Role |
 |---|---|---|
-| API Server | http://localhost:3001 | Backend REST API |
-| Admin Dashboard | http://localhost:5173 | Merchant management UI |
-| Demo Store | http://localhost:5174 | E-commerce checkout demo |
+| API Server | http://localhost:3001 | REST API and webhook engine |
+| Admin Dashboard | http://localhost:5173 | Merchant operations UI |
+| Demo Store | http://localhost:5174 | Checkout demo |
 
-### Step 2: Get Your API Key
+When the API server starts, copy the printed `fm_sk_...` API key and use it in the dashboard.
 
-Look in the server terminal output for:
+## Demo Flow
 
-```
-Demo Merchant API Key: fm_sk_a1b2c3d4e5f6...
-```
+1. Open the dashboard and paste the demo API key.
+2. Create an invoice from the dashboard.
+3. Open the invoice detail page and poll/refresh status.
+4. Register a webhook endpoint and send a test event.
+5. Open the demo store, add products, and start checkout.
+6. Watch the invoice move through pending, paid, expired, or cancelled states.
 
-Save this key -- you need it to access the dashboard.
+Demo mode works without a real Fiber node. In production, set `FIBER_NODE_RPC_URL`, `FIBER_NODE_RPC_USER`, and `FIBER_NODE_RPC_PASSWORD`.
 
-### Step 3: Open the Dashboard
+## Core Technical Decisions
 
-1. Open http://localhost:5173
-2. Paste your API key and click "Connect"
-3. Explore invoices, webhooks, transactions, and channel balances
-
-### Step 4: Try the Demo Store
-
-1. Open http://localhost:5174
-2. Add products to cart
-3. Click "Pay with Fiber" -- watch the payment flow with simulated 30% success rate
-
-> Tip: Try the demo store without an API key first to see the interface. Then add your API key to `packages/demo-store/.env` for full functionality.
-
----
-
-## Dashboard Preview
-
-### Home Page
-Shows key metrics: total invoices, paid invoices, revenue volume, active channels, and a 14-day revenue bar chart.
-
-### Invoices
-Full list with status badges, filtering, and drill-down to individual invoice details with QR code data.
-
-### Webhooks
-Register webhook endpoints by event type, view delivery logs with status codes and retry attempts, test webhooks.
-
-### Transactions
-Incoming/outgoing payment history with status tracking.
-
-### Balance
-Channel-level balance visualization showing local/remote balances across payment channels.
-
----
-
-## API Overview
-
-All endpoints are prefixed with `/api/v1` and require `Authorization: Bearer fm_sk_...` header.
-
-### Invoices
-
-| Method | Endpoint | Description |
-|---|---|---|
-| `POST` | `/invoices` | Create a payment invoice |
-| `GET` | `/invoices` | List invoices (with status filter and pagination) |
-| `GET` | `/invoices/:id` | Get invoice + auto-poll Fiber node for status |
-| `POST` | `/invoices/:id/cancel` | Cancel a pending invoice |
-| `POST` | `/invoices/:id/refund` | Refund a paid invoice |
-| `GET` | `/invoices/:id/qr` | Get QR code data |
-
-### Webhooks
-
-| Method | Endpoint | Description |
-|---|---|---|
-| `POST` | `/webhooks` | Register a webhook endpoint |
-| `GET` | `/webhooks` | List all webhooks |
-| `GET/PATCH/DELETE` | `/webhooks/:id` | Manage a webhook |
-| `GET` | `/webhooks/:id/deliveries` | View delivery logs |
-| `POST` | `/webhooks/:id/test` | Send test event |
-
-### Balance & Stats
-
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/balance/channels` | Channel-level balances |
-| `GET` | `/balance/total` | Aggregate balance |
-| `GET` | `/stats` | Dashboard statistics |
-| `GET` | `/stats/revenue?days=30` | Revenue history |
-| `GET` | `/health` | Health check |
-
-### Transactions
-
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/transactions` | List transactions |
-| `GET` | `/transactions/:id` | Get transaction details |
-
-Full API reference: [docs/api-reference.md](docs/api-reference.md)
-
----
-
-## Webhooks
-
-The webhook system provides real-time payment notifications with enterprise-grade reliability.
-
-### Supported Events
-
-| Event | Fired When |
+| Decision | Reason |
 |---|---|
-| `invoice.created` | A new invoice is created |
-| `invoice.received` | Payment is detected (unconfirmed) |
-| `invoice.paid` | Payment is confirmed and settled |
-| `invoice.expired` | Invoice expires without payment |
-| `invoice.cancelled` | Invoice is manually cancelled |
-| `invoice.refunded` | A paid invoice is refunded |
+| API server as proxy | Keeps Fiber node credentials off clients and centralizes payment lifecycle logic |
+| sql.js SQLite | Zero-config persistence for hackathon evaluation and simple merchant deployments |
+| Opaque cursor pagination | Stable paging while preserving implementation flexibility |
+| Idempotent invoice transitions | Repeated status polling should not duplicate successful transactions |
+| HMAC-signed webhooks | Lets merchants verify events came from their payment server |
+| Retry on non-2xx and network errors | Matches real webhook reliability expectations |
+| SDKs mirror API contracts | Judges can evaluate both direct HTTP and library integration paths |
 
-### Reliability
+## API Snapshot
 
-- **At-least-once delivery** -- webhooks will retry on failure
-- **Exponential backoff** -- 1s, 2s, 4s, 8s, 16s (up to 5 attempts)
-- **HMAC-SHA256 signing** -- verify payloads with `X-Fiber-Signature` header
-- **Delivery logs** -- persistent records with status codes and error messages
+All authenticated routes use:
 
-### Verification (Python)
-
-```python
-import hmac, hashlib
-
-def verify_webhook(payload: bytes, signature: str, secret: str) -> bool:
-    expected = hmac.new(secret.encode(), payload, hashlib.sha256).hexdigest()
-    return hmac.compare_digest(expected, signature)
+```http
+Authorization: Bearer fm_sk_...
 ```
 
----
+Important endpoints:
 
-## SDK Usage
+| Endpoint | Purpose |
+|---|---|
+| `POST /api/v1/invoices` | Create invoice |
+| `GET /api/v1/invoices/:id` | Get invoice and refresh payment status |
+| `POST /api/v1/invoices/:id/refund` | Refund paid invoice |
+| `POST /api/v1/webhooks` | Register webhook endpoint |
+| `GET /api/v1/webhooks/:id/deliveries` | Inspect delivery logs |
+| `GET /api/v1/transactions` | List payment history |
+| `GET /api/v1/stats` | Dashboard metrics |
 
-### TypeScript
+Full reference: [docs/api-reference.md](docs/api-reference.md)
+
+## SDK Examples
+
+TypeScript:
 
 ```typescript
 import { MerchantClient } from '@fiber-merchant/sdk';
@@ -312,112 +162,59 @@ const client = new MerchantClient({
   apiKey: 'fm_sk_YOUR_API_KEY',
 });
 
-// Create an invoice
 const invoice = await client.invoices.create({
   amount: '5000',
   currency: 'CKB',
   description: 'Order #1234',
-  metadata: { customerId: 'cus_123' },
 });
 
-// Check payment status
-const status = await client.invoices.get(invoice.id);
-if (status.status === 'paid') {
-  console.log('Payment received!');
-}
-
-// Issue a refund
-await client.invoices.refund(invoice.id, 'Customer requested refund');
+const latest = await client.invoices.get(invoice.id);
 ```
 
-### Python
+Python:
 
 ```python
-from fiber_merchant import MerchantClient
+from fiber_merchant import MerchantClient, verify_webhook_signature
 
 client = MerchantClient(
     base_url="http://localhost:3001",
     api_key="fm_sk_YOUR_API_KEY"
 )
 
-# Create invoice
 invoice = client.invoices.create(
     amount="5000",
     currency="CKB",
     description="Order #1234"
 )
-
-# Poll for payment
-while client.invoices.get(invoice.id).status != "paid":
-    import time
-    time.sleep(2)
-
-print("Payment received!")
-client.close()
 ```
 
----
+## Verification
 
-## Demo Mode vs Production
+The project includes route tests, validation tests, SDK tests, strict TypeScript checks, and a demo mode for end-to-end manual review.
 
-| Feature | Demo Mode | Production |
-|---|---|---|
-| Fiber Node | Simulated (random 30% payment success) | Real FNN RPC connection |
-| Invoices | Generated locally with fake payment hashes | Created via `invoice.new_invoice` RPC |
-| Payments | Random 30% chance of "Paid" on each poll | Real payment detection via `invoice.get_invoice` |
-| Channels | 2 demo channels (CKB + RUSD) | Real channel list from `channel.list_channels` |
-| Database | SQLite (`data/merchant.db`) | SQLite (or PostgreSQL with adapter) |
-| Setup | Zero config -- just run the server | Set `FIBER_NODE_RPC_URL` env var |
-
-### Enable Production Mode
+Useful commands:
 
 ```bash
-export FIBER_NODE_RPC_URL=http://your-fnn-node:8227
-export FIBER_NODE_RPC_USER=ckb
-export FIBER_NODE_RPC_PASSWORD=your_password
-npm run dev --workspace=packages/api-server
+npm run test --workspaces --if-present
+npm run lint --workspaces --if-present
+npm run build --workspaces
 ```
 
----
+## Production Notes
 
-## Roadmap
+Demo mode is intentionally frictionless for judging. For production:
 
-- [x] Invoice CRUD -- create, get, list, cancel, refund
-- [x] Webhook Engine -- HMAC-signed, retry logic, delivery logs
-- [x] Admin Dashboard -- full merchant management UI
-- [x] Demo Storefront -- end-to-end checkout flow
-- [x] TypeScript SDK -- all API methods, typed interfaces
-- [x] Python SDK -- parallel implementation
-- [ ] PostgreSQL adapter -- production-scale deployments
-- [ ] Rate limiting -- per-API-key throttling
-- [ ] Multi-user RBAC -- team accounts with permissions
-- [ ] BOLT12 Offers -- static payment addresses
-- [ ] Submarine Swaps -- on-chain to off-chain
-- [ ] Analytics Dashboard -- revenue graphs, success rates
+| Area | Current State | Next Step |
+|---|---|---|
+| Persistence | SQLite via sql.js | PostgreSQL adapter for horizontal scale |
+| Auth | API key bearer tokens | Merchant users and RBAC |
+| Webhooks | Signed delivery with retry logs | Background queue and dashboard replay |
+| Fiber RPC | Real RPC wrapper plus demo mode | Node health monitoring and alerting |
 
----
+## Links
 
-## Built For
-
-| Audience | How They Benefit |
-|---|---|
-| E-commerce stores | Accept Fiber payments with 5 lines of code |
-| SaaS platforms | Pay-per-use billing via webhooks |
-| Wallet developers | Reference API pattern for Fiber integration |
-| Node operators | Dashboard to monitor channels and liquidity |
-
----
-
-## License
-
-MIT
-
----
-
-<div align="center">
-  <p>
-    <a href="docs/getting-started.md">Getting Started Guide</a> -
-    <a href="docs/api-reference.md">API Reference</a> -
-    <a href="docs/architecture.md">Architecture</a>
-  </p>
-</div>
+- [Judge Guide](JUDGES.md)
+- [Architecture](docs/architecture.md)
+- [Getting Started](docs/getting-started.md)
+- [API Reference](docs/api-reference.md)
+- [Quick API Sheet](API.md)

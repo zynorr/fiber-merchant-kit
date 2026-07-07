@@ -1,94 +1,253 @@
-# Fiber Merchant Kit -- Architecture
+# Fiber Merchant Kit Architecture
 
-## Overview
+This document is written for reviewers who need to understand the system quickly and then inspect the implementation with confidence.
 
-The Fiber Merchant Kit bridges the gap between low-level Fiber Network Node (FNN) RPC calls and the high-level APIs that merchants and developers need to accept payments.
+## Executive Summary
 
-## Design Goals
+Fiber Merchant Kit turns low-level Fiber Network Node RPC into merchant-grade payment infrastructure:
 
-1. **Developer-friendly** -- Abstract channel management, preimage generation, and invoice lifecycle
-2. **Merchant-centric** -- Webhooks, refunds, transaction history, and accounting exports
-3. **Multi-language** -- TypeScript and Python SDKs with consistent API patterns
-4. **Security-first** -- API key authentication, HMAC-signed webhooks, no direct node exposure
-5. **Fiber-native** -- Works with FNN RPC to create invoices, poll status, and manage channels
+- A REST API for invoices, refunds, transactions, channel balances, stats, and webhooks.
+- A durable local database for merchant state.
+- A webhook delivery engine with HMAC signatures, retries, and delivery logs.
+- Admin and demo frontends for operating and demonstrating the flow.
+- TypeScript and Python SDKs for application integration.
 
-## Data Flow
+The important design choice is the API server boundary. It owns secrets, persistence, Fiber RPC access, invoice state transitions, and webhook delivery. Clients stay simple and safe.
 
-### Creating an Invoice
+## System Context
 
-```
-Merchant App -> SDK -> Merchant API -> FNN Node
-    |                          |
-    |                          +-- new_invoice RPC
-    |                          +-- Returns: invoiceAddress, paymentHash, preimage
-    |                          |
-    |                          +-- Store in SQLite
-    |
-    +-- Returns: Invoice object with ID, address, status
-```
+```mermaid
+flowchart LR
+  Merchant["Merchant Application"] --> SDKTS["TypeScript SDK"]
+  Merchant --> SDKPY["Python SDK"]
+  Operator["Merchant Operator"] --> Dashboard["Admin Dashboard"]
+  Shopper["Demo Shopper"] --> Store["Demo Store"]
 
-### Receiving a Payment (Polling)
+  SDKTS --> API["Merchant API Server"]
+  SDKPY --> API
+  Dashboard --> API
+  Store --> API
 
-```
-Merchant App -> SDK -> Merchant API -> FNN Node
-                              |
-                              +-- get_invoice RPC (polled)
-                              +-- If status = "Paid":
-                              |   +-- Update SQLite -> "paid"
-                              |   +-- Create Transaction record
-                              |   +-- Fire webhook: invoice.paid
-                              |   +-- Return updated Invoice
-                              |
-                              +-- Return Invoice with current status
+  API --> DB[("SQLite Database")]
+  API --> Fiber["Fiber Network Node RPC"]
+  API --> DemoFiber["Demo Fiber Client"]
+  API --> Hooks["Merchant Webhook URLs"]
 ```
 
-### Webhook Delivery
+### Runtime Ports
 
+| Runtime | Default URL | Package |
+|---|---|---|
+| API Server | `http://localhost:3001` | `packages/api-server` |
+| Admin Dashboard | `http://localhost:5173` | `packages/admin-dashboard` |
+| Demo Store | `http://localhost:5174` | `packages/demo-store` |
+
+## Component Responsibilities
+
+| Component | Owns | Does Not Own | Key Files |
+|---|---|---|---|
+| API Server | Auth, validation, invoice lifecycle, DB writes, Fiber RPC calls, webhook dispatch | Browser UI state | `packages/api-server/src/routes/*`, `packages/api-server/src/db/index.ts`, `packages/api-server/src/services/webhook-delivery.ts` |
+| SQLite Layer | Merchant, invoice, webhook, delivery, transaction persistence | Business decisions outside DB helpers | `packages/api-server/src/db/schema.ts`, `packages/api-server/src/db/index.ts` |
+| Fiber Client | Fiber node RPC abstraction and demo-mode simulation | Merchant auth or webhooks | `packages/api-server/src/services/fiber-client.ts`, `packages/api-server/src/lib/fiber-client.ts` |
+| Admin Dashboard | Merchant operations workflow | Payment truth or secret storage | `packages/admin-dashboard/src/pages/*` |
+| Demo Store | Buyer-facing checkout demo | Merchant administration | `packages/demo-store/src/App.tsx` |
+| TypeScript SDK | Typed API access for JS apps | Persistence or background jobs | `packages/sdk-typescript/src/client.ts` |
+| Python SDK | Python API access and webhook signature helper | Persistence or background jobs | `packages/sdk-python/src/fiber_merchant/client.py` |
+
+## Layered Architecture
+
+```mermaid
+flowchart TB
+  subgraph Clients["Client Layer"]
+    SDKTS["TypeScript SDK"]
+    SDKPY["Python SDK"]
+    Dashboard["Admin Dashboard"]
+    Store["Demo Store"]
+  end
+
+  subgraph API["API Server Layer"]
+    Auth["API Key Auth"]
+    Validation["Zod Validation"]
+    Invoices["Invoice Routes"]
+    Webhooks["Webhook Routes"]
+    Merchant["Merchant Routes"]
+    Delivery["Webhook Delivery Engine"]
+  end
+
+  subgraph State["State Layer"]
+    DB[("SQLite / sql.js")]
+  end
+
+  subgraph External["External Systems"]
+    Fiber["Fiber Node RPC"]
+    HookURL["Merchant Webhook Endpoint"]
+  end
+
+  Clients --> Auth
+  Auth --> Validation
+  Validation --> Invoices
+  Validation --> Webhooks
+  Validation --> Merchant
+  Invoices --> DB
+  Webhooks --> DB
+  Merchant --> DB
+  Invoices --> Fiber
+  Merchant --> Fiber
+  Invoices --> Delivery
+  Delivery --> DB
+  Delivery --> HookURL
 ```
-FNN Node detects payment
-    |
-    v
-Merchant API polls and detects "Paid"
-    |
-    +-- Looks up registered webhooks matching "invoice.paid" event
-    +-- For each matching webhook:
-    |   +-- POST payload to webhook URL
-    |   +-- Include X-Fiber-Signature (HMAC-SHA256)
-    |   +-- Log delivery result
-    |   +-- If failed: retry with exponential backoff (up to 5 attempts)
-    |
-    +-- Merchant receives webhook notification
+
+## Main Data Flows
+
+### 1. Create Invoice
+
+```mermaid
+sequenceDiagram
+  participant App as Merchant App or Dashboard
+  participant API as API Server
+  participant Fiber as Fiber Node or Demo Client
+  participant DB as SQLite
+  participant Hook as Webhook Engine
+
+  App->>API: POST /api/v1/invoices
+  API->>API: Validate body and API key
+  API->>Fiber: createInvoice(...)
+  Fiber-->>API: paymentHash, preimage, invoiceAddress
+  API->>DB: Insert invoice
+  API->>DB: Insert pending transaction
+  API->>Hook: Emit invoice.created
+  API-->>App: 201 Invoice
 ```
 
-## Key Design Decisions
+Why this matters: merchants get one simple REST call while the server handles Fiber RPC details and records the invoice locally.
 
-### Why a Proxy Architecture?
+### 2. Refresh Invoice Status
 
-The browser never communicates directly with the Fiber Node RPC. Instead, the Merchant API Server acts as a proxy:
-- Prevents exposure of RPC credentials
-- Allows webhook delivery (browser cannot send webhooks)
-- Provides persistent storage (SQLite) for invoices and transactions
-- Enables API key authentication
+```mermaid
+sequenceDiagram
+  participant App as SDK/Dashboard/Store
+  participant API as API Server
+  participant Fiber as Fiber Node or Demo Client
+  participant DB as SQLite
+  participant Hook as Webhook Engine
 
-### Why SQLite?
+  App->>API: GET /api/v1/invoices/:id
+  API->>DB: Load merchant-scoped invoice
+  API->>Fiber: getInvoiceStatus(paymentHash)
+  Fiber-->>API: Open, Received, Paid, or Expired
+  alt Paid and local status changed
+    API->>DB: Mark invoice paid
+    API->>DB: Promote pending transaction to Succeeded
+    API->>Hook: Emit invoice.paid
+  else Received or Expired
+    API->>DB: Apply idempotent state transition
+    API->>Hook: Emit matching event
+  end
+  API-->>App: Current invoice
+```
 
-- Zero configuration -- no external database needed
-- File-based -- easy to back up
-- Sufficient for a merchant processing thousands of payments
-- Can be swapped for PostgreSQL in production
+Why this matters: status refresh is idempotent. Repeated polling does not create duplicate successful transactions.
 
-### Webhook Reliability
+### 3. Deliver Webhook
 
-- At-least-once delivery semantics
-- Exponential backoff: 1s, 2s, 4s, 8s, 16s
-- Persistent delivery logs for debugging
-- Event-level subscription (merchants choose which events to receive)
+```mermaid
+sequenceDiagram
+  participant Hook as Webhook Engine
+  participant DB as SQLite
+  participant Target as Merchant Webhook URL
 
-## Future Enhancements
+  Hook->>DB: Create delivery log
+  Hook->>Target: POST signed event
+  alt 2xx
+    Hook->>DB: Mark success
+  else non-2xx or network error
+    Hook->>DB: Record failure attempt
+    Hook->>Hook: Backoff and retry
+  end
+```
 
-- PostgreSQL database adapter
-- Rate limiting per API key
-- Multi-user merchant accounts
-- Analytics dashboard with charts
-- BOLT12 Offer support for static payment addresses
-- Submarine swaps (on-chain to off-chain)
+Why this matters: webhook failures are visible and retried. The dashboard can show delivery attempts and errors.
+
+## State Model
+
+| Table | Purpose |
+|---|---|
+| `merchants` | API key identity and merchant metadata |
+| `invoices` | Payment requests, Fiber payment hash, invoice address, status timestamps |
+| `transactions` | Incoming/outgoing payment history connected to invoices |
+| `webhooks` | Registered merchant webhook endpoints and event subscriptions |
+| `webhook_deliveries` | Delivery attempts, HTTP status, success flag, error, payload |
+
+## API Contract Shape
+
+Database rows are snake_case internally. API responses are camelCase externally.
+
+| Internal | External |
+|---|---|
+| `payment_hash` | `paymentHash` |
+| `invoice_address` | `invoiceAddress` |
+| `created_at` | `createdAt` |
+| `delivered_at` | `deliveredAt` |
+
+This keeps SQLite simple while giving JS and Python clients a predictable public contract.
+
+## Security Model
+
+| Concern | Design |
+|---|---|
+| API access | Bearer API keys with `fm_sk_` prefix |
+| Fiber RPC credentials | Server-side only, never exposed to dashboard/store |
+| Request validation | Zod schemas at route boundaries |
+| Webhook authenticity | HMAC-SHA256 signature in `X-Fiber-Signature` |
+| Tenant isolation | Merchant-scoped invoice, webhook, transaction, and delivery queries |
+| Abuse control | Express rate limiting middleware |
+| Browser security | Helmet and configurable CORS |
+
+## Reliability Decisions
+
+| Decision | Reason |
+|---|---|
+| Idempotent invoice state updates | Polling is repeated by nature; repeated reads must not duplicate writes |
+| Promote pending incoming transaction | Keeps one canonical transaction for one invoice payment |
+| Retry webhook non-2xx responses | HTTP 500 is a delivery failure, not a successful attempt |
+| Opaque cursor pagination | Allows stable created-at/id ordering without exposing implementation details |
+| Demo Fiber client | Judges can review the full product without running a Fiber node |
+
+## Demo Mode vs Production Mode
+
+| Capability | Demo Mode | Production Mode |
+|---|---|---|
+| Fiber RPC | Simulated in process | Real `FIBER_NODE_RPC_URL` |
+| Invoice creation | Fake payment hashes and addresses | Fiber node invoice RPC |
+| Payment status | Randomized status simulation | Fiber node status polling |
+| Channels | Sample balances | Real channel list |
+| Setup cost | No external services | Fiber node credentials required |
+
+## Review Checklist
+
+Judges can inspect these files to validate the architecture:
+
+| Question | Where To Look |
+|---|---|
+| How is authentication enforced? | `packages/api-server/src/middleware/auth.ts` |
+| How are invoice state transitions handled? | `packages/api-server/src/routes/invoices.ts`, `packages/api-server/src/db/index.ts` |
+| How are webhook retries implemented? | `packages/api-server/src/services/webhook-delivery.ts` |
+| How are API inputs validated? | `packages/api-server/src/validation.ts` |
+| How do SDKs map to API endpoints? | `packages/sdk-typescript/src/client.ts`, `packages/sdk-python/src/fiber_merchant/client.py` |
+| How does the dashboard expose merchant workflows? | `packages/admin-dashboard/src/pages` |
+| How does the demo store exercise checkout? | `packages/demo-store/src/App.tsx` |
+
+## Known Tradeoffs
+
+| Tradeoff | Why It Was Acceptable For Hackathon | Production Path |
+|---|---|---|
+| SQLite/sql.js instead of hosted DB | Zero-config setup and easy judging | PostgreSQL adapter |
+| Poll-on-read invoice refresh | Simple, observable, no worker dependency | Dedicated background worker or queue |
+| In-process webhook retry | Easy to inspect and test | Durable queue with replay controls |
+| Single API key auth model | Fits demo merchant workflow | Merchant users, teams, RBAC |
+| Demo Fiber client | Makes the project runnable by anyone | Real Fiber node deployment |
+
+## Why This Architecture Fits The Problem
+
+Payment infrastructure needs more than a single RPC wrapper. It needs a reliable boundary between merchant apps and payment network operations. This architecture puts that boundary in the API server, then builds the merchant experience around it: SDKs for integration, dashboard for operation, demo store for proof, and webhooks for automation.

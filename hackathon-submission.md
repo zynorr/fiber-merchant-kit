@@ -2,6 +2,8 @@
 
 Complete payment processing infrastructure for the Fiber Network. Provides a REST API, webhook engine, admin dashboard, and multi-language SDKs for accepting Fiber payments.
 
+For judging, start with [JUDGES.md](JUDGES.md). It contains the fastest review path, demo script, architecture links, and implementation evidence map.
+
 ---
 
 ## Table of Contents
@@ -278,7 +280,7 @@ def verify_webhook(payload: bytes, signature: str, secret: str) -> bool:
 
 # Create a client and list invoices
 client = MerchantClient(
-    base_url="http://localhost:3001/api/v1",
+    base_url="http://localhost:3001",
     api_key="fm_sk_..."
 )
 invoices = client.invoices.list(status="paid")
