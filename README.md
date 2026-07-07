@@ -13,20 +13,38 @@ This repository is organized so hackathon judges can review the product, archite
 | 10 minutes | [packages/api-server/src/routes/invoices.ts](packages/api-server/src/routes/invoices.ts) and [packages/api-server/src/services/webhook-delivery.ts](packages/api-server/src/services/webhook-delivery.ts) | Core invoice lifecycle and webhook reliability |
 | 15 minutes | Run `npm run dev` | API, dashboard, and demo store running together |
 
-## What This Solves
+## The Problem It Solves
 
-Fiber Network is fast and low-cost, but raw Fiber node RPC is not merchant-friendly. A merchant would still need invoice lifecycle handling, payment polling, webhooks, retries, a dashboard, SDKs, and persistence.
+Fiber Network gives Nervos CKB a fast payment-channel layer, but accepting payments is still too hard for normal merchants and application developers. The raw Fiber node interface is built for node operators and protocol-level integrations, not for an online store, SaaS app, game, marketplace, or wallet team that simply wants to create an invoice and fulfill an order when payment arrives.
 
-Fiber Merchant Kit packages those missing pieces into one developer-facing system.
+Without a merchant layer, every team that wants to accept Fiber payments has to rebuild the same infrastructure:
+
+| Missing Piece | Why It Blocks Adoption |
+|---|---|
+| Merchant-friendly invoice API | Raw node RPC requires payment-channel knowledge and does not feel like the payment APIs developers already know |
+| Payment lifecycle tracking | Apps need stable states like `pending`, `paid`, `expired`, `cancelled`, and `refunded` |
+| Webhook notifications | Stores and SaaS products need automatic order fulfillment when a payment settles |
+| Retry and delivery logs | A webhook that fails once should not silently lose a payment event |
+| Dashboard and transaction history | Merchants need to inspect invoices, payments, refunds, balances, and webhook failures |
+| Multi-language SDKs | Integration should be simple from TypeScript and Python apps, not only low-level RPC clients |
+| Local demo path | Judges and developers should be able to test the whole flow without running a real Fiber node |
+
+The result is a real ecosystem gap: Fiber can move value quickly, but developers do not yet have the surrounding merchant infrastructure that turns payment channels into practical checkout flows.
+
+## The Solution
+
+Fiber Merchant Kit fills that gap with a Stripe-style merchant stack for Fiber Network payments. It wraps Fiber node operations behind a stable REST API, persists merchant state, handles invoice status transitions, sends signed webhooks, provides operational visibility, and ships SDKs plus a runnable demo.
 
 | Merchant Need | Delivered In This Repo |
 |---|---|
 | Create payment requests | REST API and SDK invoice creation |
-| Know when a payment settles | Auto-polling invoice status updates |
-| Integrate into order systems | HMAC-signed webhooks with retry and delivery logs |
-| Operate the system | React admin dashboard for invoices, webhooks, transactions, balances |
-| Demo without node setup | Built-in demo Fiber client mode |
-| Integrate from apps | TypeScript SDK and Python SDK |
+| Know when a payment settles | Auto-polling invoice status updates and idempotent state transitions |
+| Fulfill orders automatically | HMAC-signed webhooks with retry and delivery logs |
+| Debug payment operations | Dashboard views for invoices, transactions, balances, webhook logs |
+| Integrate quickly | TypeScript SDK and Python SDK |
+| Evaluate without infrastructure | Demo Fiber client mode and demo storefront |
+
+In practical terms, this project lets a developer go from "I have a Fiber node" to "my app can accept, track, and react to Fiber payments" with familiar merchant primitives.
 
 ## Architecture At A Glance
 
@@ -126,6 +144,7 @@ Demo mode works without a real Fiber node. In production, set `FIBER_NODE_RPC_UR
 | Idempotent invoice transitions | Repeated status polling should not duplicate successful transactions |
 | HMAC-signed webhooks | Lets merchants verify events came from their payment server |
 | Retry on non-2xx and network errors | Matches real webhook reliability expectations |
+| Manual webhook replay | Lets operators retry a failed delivery from the API or dashboard |
 | SDKs mirror API contracts | Judges can evaluate both direct HTTP and library integration paths |
 
 ## API Snapshot
@@ -145,6 +164,7 @@ Important endpoints:
 | `POST /api/v1/invoices/:id/refund` | Refund paid invoice |
 | `POST /api/v1/webhooks` | Register webhook endpoint |
 | `GET /api/v1/webhooks/:id/deliveries` | Inspect delivery logs |
+| `POST /api/v1/webhooks/:id/deliveries/:deliveryId/retry` | Replay a failed webhook delivery |
 | `GET /api/v1/transactions` | List payment history |
 | `GET /api/v1/stats` | Dashboard metrics |
 
@@ -208,7 +228,7 @@ Demo mode is intentionally frictionless for judging. For production:
 |---|---|---|
 | Persistence | SQLite via sql.js | PostgreSQL adapter for horizontal scale |
 | Auth | API key bearer tokens | Merchant users and RBAC |
-| Webhooks | Signed delivery with retry logs | Background queue and dashboard replay |
+| Webhooks | Signed delivery, retry logs, and manual replay | Durable background queue |
 | Fiber RPC | Real RPC wrapper plus demo mode | Node health monitoring and alerting |
 
 ## Links

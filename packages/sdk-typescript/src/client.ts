@@ -34,6 +34,7 @@ import type {
   WebhookEndpoint,
   RegisterWebhookRequest,
   WebhookDelivery,
+  WebhookRetryResponse,
   WebhookTestResponse,
   Transaction,
   ChannelBalance,
@@ -159,6 +160,11 @@ class WebhookResource {
   /** Get delivery logs for a webhook */
   async getDeliveries(id: string): Promise<WebhookDelivery[]> {
     return this.fetch(`/webhooks/${id}/deliveries`);
+  }
+
+  /** Retry a previous webhook delivery by creating a new delivery attempt */
+  async retryDelivery(id: string, deliveryId: string): Promise<WebhookRetryResponse> {
+    return this.fetch(`/webhooks/${id}/deliveries/${deliveryId}/retry`, { method: 'POST' });
   }
 
   /** Test a webhook by sending a test event */

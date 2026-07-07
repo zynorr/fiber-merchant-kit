@@ -8,7 +8,7 @@ Fiber Merchant Kit turns low-level Fiber Network Node RPC into merchant-grade pa
 
 - A REST API for invoices, refunds, transactions, channel balances, stats, and webhooks.
 - A durable local database for merchant state.
-- A webhook delivery engine with HMAC signatures, retries, and delivery logs.
+- A webhook delivery engine with HMAC signatures, retries, delivery logs, and manual replay.
 - Admin and demo frontends for operating and demonstrating the flow.
 - TypeScript and Python SDKs for application integration.
 
@@ -165,9 +165,13 @@ sequenceDiagram
     Hook->>DB: Record failure attempt
     Hook->>Hook: Backoff and retry
   end
+  opt Operator replay
+    Hook->>DB: Create fresh delivery log from stored payload
+    Hook->>Target: POST signed event again
+  end
 ```
 
-Why this matters: webhook failures are visible and retried. The dashboard can show delivery attempts and errors.
+Why this matters: webhook failures are visible, retried, and replayable. The dashboard can show delivery attempts and errors without losing the original audit trail.
 
 ## State Model
 
@@ -211,6 +215,7 @@ This keeps SQLite simple while giving JS and Python clients a predictable public
 | Idempotent invoice state updates | Polling is repeated by nature; repeated reads must not duplicate writes |
 | Promote pending incoming transaction | Keeps one canonical transaction for one invoice payment |
 | Retry webhook non-2xx responses | HTTP 500 is a delivery failure, not a successful attempt |
+| Replay webhook deliveries as new rows | Operators need a clean audit trail when re-sending a failed event |
 | Opaque cursor pagination | Allows stable created-at/id ordering without exposing implementation details |
 | Demo Fiber client | Judges can review the full product without running a Fiber node |
 
@@ -244,7 +249,7 @@ Judges can inspect these files to validate the architecture:
 |---|---|---|
 | SQLite/sql.js instead of hosted DB | Zero-config setup and easy judging | PostgreSQL adapter |
 | Poll-on-read invoice refresh | Simple, observable, no worker dependency | Dedicated background worker or queue |
-| In-process webhook retry | Easy to inspect and test | Durable queue with replay controls |
+| In-process webhook retry | Easy to inspect and test | Durable queue workers and scheduling |
 | Single API key auth model | Fits demo merchant workflow | Merchant users, teams, RBAC |
 | Demo Fiber client | Makes the project runnable by anyone | Real Fiber node deployment |
 

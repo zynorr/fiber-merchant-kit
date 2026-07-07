@@ -29,7 +29,7 @@ Currently, anyone wanting to accept Fiber payments must:
 
 1. **Master FNN RPC** -- understand channel management, preimage generation, invoice lifecycle
 2. **Build polling infrastructure** -- manually check invoice statuses
-3. **Create a webhook system** -- build delivery, retry, and verification from scratch
+3. **Create a webhook system** -- build delivery, retry, replay, and verification from scratch
 4. **Write an admin interface** -- no way to view transactions or balances
 5. **Write their own SDK** -- only Rust RPC bindings exist
 
@@ -40,7 +40,7 @@ Fiber Merchant Kit is a complete, production-ready payment processing toolkit th
 | Gap | Solution |
 |---|---|
 | No merchant API | REST API with invoice CRUD, refunds, and channel management |
-| No webhooks | HMAC-SHA256 signed webhooks with automatic retry and delivery logs |
+| No webhooks | HMAC-SHA256 signed webhooks with automatic retry, replay, and delivery logs |
 | No admin UI | React dashboard with stats, invoices, webhooks, balance monitoring |
 | Only Rust SDK | TypeScript SDK (`@fiber-merchant/sdk`) + Python SDK (`fiber-merchant`) |
 | Hard to demo | Demo mode -- works without a Fiber node, ready in 3 minutes |
@@ -114,6 +114,7 @@ Webhooks use at-least-once delivery semantics:
 - Exponential backoff: 1s, 2s, 4s, 8s, 16s
 - Up to 5 retry attempts
 - Persistent delivery logs with status codes and error messages
+- Manual replay that creates a fresh delivery record from the stored payload
 
 **5. Demo Mode**
 
@@ -136,7 +137,7 @@ This means anyone can evaluate the entire system without running a Fiber node.
 | Invoice CRUD | Done | Create, get, list (with pagination), cancel, refund |
 | FNN RPC Integration | Done | `invoice.new_invoice`, `invoice.get_invoice`, `channel.list_channels`, `payment.send_payment` |
 | Webhook Registration | Done | Register by event type, update, delete |
-| Webhook Delivery | Done | HMAC-SHA256 signing, exponential backoff retry, delivery logs |
+| Webhook Delivery | Done | HMAC-SHA256 signing, exponential backoff retry, manual replay, delivery logs |
 | API Key Auth | Done | Bearer token with `fm_sk_` prefix |
 | Zod Validation | Done | Type-safe request validation for all endpoints |
 | Admin Dashboard | Done | React + Tailwind: stats, invoices, webhooks, transactions, balance |

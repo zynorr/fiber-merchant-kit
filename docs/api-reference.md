@@ -183,6 +183,34 @@ Only paid invoices can be refunded. Initiates a payment back to the original pay
 ]
 ```
 
+### Retry Delivery
+
+`POST /webhooks/:id/deliveries/:deliveryId/retry`
+
+Queues a fresh delivery attempt using the stored event payload. The original delivery log remains unchanged; the retry is written as a new delivery record so operators can compare attempts.
+
+**Response (202):**
+```json
+{
+  "message": "Delivery retry queued",
+  "delivery": {
+    "id": "delivery-retry-uuid",
+    "webhookId": "webhook-uuid",
+    "event": "invoice.paid",
+    "url": "https://api.mystore.com/webhooks/fiber",
+    "status": 0,
+    "success": false,
+    "attempts": 0,
+    "payload": {
+      "id": "invoice-uuid",
+      "status": "paid"
+    },
+    "error": null,
+    "deliveredAt": "2026-07-04T12:07:00Z"
+  }
+}
+```
+
 ### Test Webhook
 
 `POST /webhooks/:id/test`

@@ -302,6 +302,11 @@ class _WebhookResource:
         resp.raise_for_status()
         return [WebhookDelivery.from_dict(item) for item in resp.json()]
 
+    def retry_delivery(self, webhook_id: str, delivery_id: str) -> dict:
+        resp = self._client.post(f"/webhooks/{webhook_id}/deliveries/{delivery_id}/retry")
+        resp.raise_for_status()
+        return resp.json()
+
     def test(self, webhook_id: str) -> dict:
         resp = self._client.post(f"/webhooks/{webhook_id}/test")
         resp.raise_for_status()

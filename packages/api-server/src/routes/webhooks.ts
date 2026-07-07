@@ -13,7 +13,7 @@
 import { Router, Response } from 'express';
 import { AuthenticatedRequest } from '../middleware/auth';
 import * as db from '../db';
-import { dispatchWebhookEvent } from '../services/webhook-delivery';
+import { dispatchWebhookEvent, replayWebhookDelivery } from '../services/webhook-delivery';
 import crypto from 'crypto';
 import { toCamelCase } from '../lib/utils';
 import { z } from 'zod';
@@ -158,6 +158,31 @@ router.get('/:id/deliveries', (req: AuthenticatedRequest, res: Response) => {
 
     const deliveries = db.getDeliveries(req.params.id, req.merchantId);
     res.json(deliveries.map(formatDelivery));
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    res.status(500).json({ error: message });
+  }
+});
+
+router.post('/:id/deliveries/:deliveryId/retry', (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const webhook = db.getWebhook(req.params.id, req.merchantId);
+    if (!webhook) {
+      res.status(404).json({ error: 'Webhook not found' });
+      return;
+    }
+
+    const delivery = db.getDelivery(req.params.deliveryId, req.params.id, req.merchantId);
+    if (!delivery) {
+      res.status(404).json({ error: 'Delivery not found' });
+      return;
+    }
+
+    const replay = replayWebhookDelivery(webhook, delivery);
+    res.status(202).json({
+      message: 'Delivery retry queued',
+      delivery: formatDelivery(replay),
+    });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     res.status(500).json({ error: message });

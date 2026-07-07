@@ -7,7 +7,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../app';
-import type { DbMerchant, DbInvoice, DbWebhook } from '../db/types';
+import type { DbMerchant, DbInvoice, DbWebhook, DbWebhookDelivery } from '../db/types';
 
 // ── Mock objects created via vi.hoisted() to avoid hoisting issues ──
 
@@ -27,6 +27,7 @@ const mockDb = vi.hoisted(() => ({
   createDelivery: vi.fn(),
   updateDelivery: vi.fn(),
   getDeliveries: vi.fn(),
+  getDelivery: vi.fn(),
   getTransaction: vi.fn(),
   listTransactions: vi.fn(),
   getMerchantStats: vi.fn(),
@@ -46,6 +47,11 @@ const mockFiberClient = vi.hoisted(() => ({
   getNodeInfo: vi.fn(),
 }));
 
+const mockWebhookDeliveryService = vi.hoisted(() => ({
+  dispatchWebhookEvent: vi.fn(),
+  replayWebhookDelivery: vi.fn(),
+}));
+
 vi.mock('../db', () => mockDb);
 vi.mock('../lib/fiber-client', () => ({
   getFiberClient: () => mockFiberClient,
@@ -53,9 +59,7 @@ vi.mock('../lib/fiber-client', () => ({
 vi.mock('../services/fiber-client', () => ({
   FiberNodeClient: vi.fn().mockImplementation(() => mockFiberClient),
 }));
-vi.mock('../services/webhook-delivery', () => ({
-  dispatchWebhookEvent: vi.fn(),
-}));
+vi.mock('../services/webhook-delivery', () => mockWebhookDeliveryService);
 
 // ── Test Constants ─────────────────────────────────────────────
 
@@ -381,6 +385,18 @@ describe('API Routes', () => {
       merchant_id: 'merchant-1',
       created_at: '2026-07-04T00:00:00Z',
     };
+    const mockDelivery: DbWebhookDelivery = {
+      id: 'del-1',
+      webhook_id: 'wh-123',
+      event: 'invoice.paid',
+      url: 'https://example.com/hook',
+      status_code: 500,
+      success: 0,
+      attempts: 5,
+      payload: '{"id":"inv-123","status":"paid"}',
+      error: 'HTTP 500',
+      delivered_at: '2026-07-04T12:00:00Z',
+    };
 
     describe('POST /api/v1/webhooks', () => {
       it('registers a webhook', async () => {
@@ -500,6 +516,46 @@ describe('API Routes', () => {
         expect(res.body[0].status).toBe(200);
         expect(res.body[0].success).toBe(true);
         expect(res.body[0].deliveredAt).toBe('2026-07-04T12:00:00Z');
+      });
+    });
+
+    describe('POST /api/v1/webhooks/:id/deliveries/:deliveryId/retry', () => {
+      it('queues a delivery retry', async () => {
+        const replayDelivery = {
+          ...mockDelivery,
+          id: 'del-retry',
+          status_code: null,
+          success: 0,
+          attempts: null,
+          error: null,
+          delivered_at: '2026-07-04T12:05:00Z',
+        };
+        mockDb.getWebhook.mockReturnValue(mockWebhook);
+        mockDb.getDelivery.mockReturnValue(mockDelivery);
+        mockWebhookDeliveryService.replayWebhookDelivery.mockReturnValue(replayDelivery);
+
+        const res = await request(app)
+          .post('/api/v1/webhooks/wh-123/deliveries/del-1/retry')
+          .set('Authorization', `Bearer ${API_KEY}`);
+
+        expect(res.status).toBe(202);
+        expect(res.body.message).toMatch(/retry queued/i);
+        expect(res.body.delivery.id).toBe('del-retry');
+        expect(res.body.delivery.status).toBe(0);
+        expect(mockDb.getDelivery).toHaveBeenCalledWith('del-1', 'wh-123', 'merchant-1');
+        expect(mockWebhookDeliveryService.replayWebhookDelivery).toHaveBeenCalledWith(mockWebhook, mockDelivery);
+      });
+
+      it('returns 404 when retrying an unknown delivery', async () => {
+        mockDb.getWebhook.mockReturnValue(mockWebhook);
+        mockDb.getDelivery.mockReturnValue(undefined);
+
+        const res = await request(app)
+          .post('/api/v1/webhooks/wh-123/deliveries/missing/retry')
+          .set('Authorization', `Bearer ${API_KEY}`);
+
+        expect(res.status).toBe(404);
+        expect(res.body.error).toMatch(/delivery not found/i);
       });
     });
 

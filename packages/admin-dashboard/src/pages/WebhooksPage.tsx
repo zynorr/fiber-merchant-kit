@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { MerchantClient, WebhookDelivery, WebhookEndpoint } from '@fiber-merchant/sdk';
-import { Plus, Webhook, Trash2, Send, Check, X, Loader2, Activity, RefreshCw } from 'lucide-react';
+import { Plus, Webhook, Trash2, Send, Check, X, Loader2, Activity, RefreshCw, RotateCcw } from 'lucide-react';
 import { Button, Card, CardHeader, CardTitle, Badge } from '../components/ui';
 import Input from '../components/ui/Input';
 
@@ -24,6 +24,7 @@ export default function WebhooksPage({ client }: WebhooksPageProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [deliveries, setDeliveries] = useState<Record<string, WebhookDelivery[]>>({});
   const [loadingDeliveriesId, setLoadingDeliveriesId] = useState<string | null>(null);
+  const [retryingDeliveryId, setRetryingDeliveryId] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
 
@@ -95,6 +96,19 @@ export default function WebhooksPage({ client }: WebhooksPageProps) {
       setError(err instanceof Error ? err.message : 'Failed to load delivery logs');
     } finally {
       setLoadingDeliveriesId(null);
+    }
+  };
+
+  const handleRetryDelivery = async (webhookId: string, deliveryId: string) => {
+    setRetryingDeliveryId(deliveryId);
+    try {
+      await client.webhooks.retryDelivery(webhookId, deliveryId);
+      setNotice('Delivery retry queued');
+      await loadDeliveries(webhookId);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to retry delivery');
+    } finally {
+      setRetryingDeliveryId(null);
     }
   };
 
@@ -330,6 +344,21 @@ export default function WebhooksPage({ client }: WebhooksPageProps) {
                             <div className="text-left text-xs text-gray-400 sm:text-right">
                               <p>{delivery.attempts} attempt{delivery.attempts === 1 ? '' : 's'}</p>
                               <p>{new Date(delivery.deliveredAt).toLocaleString()}</p>
+                              {!delivery.success && (
+                                <button
+                                  onClick={() => handleRetryDelivery(wh.id, delivery.id)}
+                                  disabled={retryingDeliveryId === delivery.id}
+                                  className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-fiber-600 hover:text-fiber-700 disabled:opacity-50"
+                                  title="Retry delivery"
+                                >
+                                  {retryingDeliveryId === delivery.id ? (
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                  ) : (
+                                    <RotateCcw className="h-3 w-3" />
+                                  )}
+                                  Retry
+                                </button>
+                              )}
                             </div>
                           </div>
                         ))}

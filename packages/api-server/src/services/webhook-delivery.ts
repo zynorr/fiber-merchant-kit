@@ -6,10 +6,40 @@
  */
 
 import { createDelivery, updateDelivery, listWebhooks } from '../db';
+import type { DbWebhook, DbWebhookDelivery } from '../db/types';
 import crypto from 'crypto';
 
 const MAX_RETRIES = 5;
 const BASE_DELAY_MS = 1000;
+
+function parseDeliveryPayload(payload: string | null): Record<string, unknown> {
+  if (!payload) return {};
+  const parsed = JSON.parse(payload) as unknown;
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new Error('Stored webhook payload is not an object');
+  }
+  return parsed as Record<string, unknown>;
+}
+
+function queueDelivery(
+  deliveryId: string,
+  url: string,
+  secret: string,
+  event: string,
+  payload: Record<string, unknown>,
+): void {
+  void deliverWithRetry(deliveryId, url, secret, event, payload)
+    .catch((err: unknown) => {
+      const message = err instanceof Error ? err.message : String(err);
+      updateDelivery(deliveryId, {
+        statusCode: 0,
+        success: false,
+        attempts: 1,
+        error: message,
+      });
+      console.error(`[Webhook] Unexpected delivery failure: ${message}`);
+    });
+}
 
 /**
  * Dispatch a webhook event to all registered webhooks matching that event type
@@ -37,18 +67,28 @@ export async function dispatchWebhookEvent(
     });
 
     // Fire-and-forget with retries
-    void deliverWithRetry(deliveryId, webhook.url as string, webhook.secret as string, event, payload)
-      .catch((err: unknown) => {
-        const message = err instanceof Error ? err.message : String(err);
-        updateDelivery(deliveryId, {
-          statusCode: 0,
-          success: false,
-          attempts: 1,
-          error: message,
-        });
-        console.error(`[Webhook] Unexpected delivery failure: ${message}`);
-      });
+    queueDelivery(deliveryId, webhook.url as string, webhook.secret as string, event, payload);
   }
+}
+
+/**
+ * Replay an existing delivery by creating a fresh delivery log and queueing it.
+ */
+export function replayWebhookDelivery(
+  webhook: DbWebhook,
+  original: DbWebhookDelivery,
+): DbWebhookDelivery {
+  const payload = parseDeliveryPayload(original.payload);
+  const delivery = createDelivery({
+    id: crypto.randomUUID(),
+    webhookId: webhook.id,
+    event: original.event,
+    url: webhook.url,
+    payload,
+  });
+
+  queueDelivery(delivery.id, webhook.url, webhook.secret, original.event, payload);
+  return delivery;
 }
 
 function getRetryDelay(attempt: number): number {

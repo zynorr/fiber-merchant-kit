@@ -98,6 +98,7 @@ export interface WebhookEndpoint {
 /** Webhook delivery log */
 export interface WebhookDelivery {
   id: string;
+  webhookId?: string;
   event: WebhookEvent;
   url: string;
   status: number;
@@ -112,6 +113,12 @@ export interface WebhookDelivery {
 export interface WebhookTestResponse {
   message: string;
   webhookId: string;
+}
+
+/** Response returned after queueing a webhook delivery retry */
+export interface WebhookRetryResponse {
+  message: string;
+  delivery: WebhookDelivery;
 }
 
 /** Transaction record */

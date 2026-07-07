@@ -449,6 +449,28 @@ class TestWebhooks:
         assert deliveries[0].webhook_id == "wh-123"
         assert deliveries[0].success is True
 
+    def test_retry_delivery_calls_post(self, mock_client, mock_response):
+        client, mock_httpx = mock_client
+        mock_httpx.post.return_value = mock_response({
+            "message": "Delivery retry queued",
+            "delivery": {
+                "id": "del-retry",
+                "webhookId": "wh-123",
+                "event": "invoice.paid",
+                "url": "https://example.com/hook",
+                "status": 0,
+                "success": False,
+                "attempts": 0,
+                "payload": {"id": "inv-1"},
+                "deliveredAt": "2026-07-04T12:05:00Z",
+            },
+        })
+
+        result = client.webhooks.retry_delivery("wh-123", "del-1")
+
+        mock_httpx.post.assert_called_once_with("/webhooks/wh-123/deliveries/del-1/retry")
+        assert result["delivery"]["id"] == "del-retry"
+
     def test_test_calls_post(self, mock_client, mock_response):
         client, mock_httpx = mock_client
         mock_httpx.post.return_value = mock_response({"message": "Test event sent", "webhookId": "wh-123"}, status=200)

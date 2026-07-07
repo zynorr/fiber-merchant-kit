@@ -28,6 +28,7 @@ Authentication: `Authorization: Bearer fm_sk_...`
 | `PATCH` | `/webhooks/:id` | Update webhook |
 | `DELETE` | `/webhooks/:id` | Delete webhook |
 | `GET` | `/webhooks/:id/deliveries` | Delivery logs |
+| `POST` | `/webhooks/:id/deliveries/:deliveryId/retry` | Queue a fresh retry for an existing delivery |
 | `POST` | `/webhooks/:id/test` | Send test event |
 
 ## Balance & Stats

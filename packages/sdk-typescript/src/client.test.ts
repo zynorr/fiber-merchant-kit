@@ -275,6 +275,29 @@ describe('MerchantClient', () => {
       });
     });
 
+    describe('retryDelivery', () => {
+      it('should POST /webhooks/:id/deliveries/:deliveryId/retry', async () => {
+        const mockResponse = {
+          message: 'Delivery retry queued',
+          delivery: {
+            id: 'del-retry',
+            webhookId: 'wh-123',
+            event: 'invoice.paid',
+            url: 'https://example.com',
+            status: 0,
+            success: false,
+            attempts: 0,
+            payload: {},
+            deliveredAt: '2026-07-04T12:05:00Z',
+          },
+        };
+        mockFetch.mockResolvedValue(mockResponse);
+        const result = await client.webhooks.retryDelivery('wh-123', 'del-1');
+        expect(mockFetch).toHaveBeenCalledWith('/webhooks/wh-123/deliveries/del-1/retry', { method: 'POST' });
+        expect(result.delivery.id).toBe('del-retry');
+      });
+    });
+
     describe('test', () => {
       it('should POST /webhooks/:id/test', async () => {
         const mockResponse = { message: 'Test event sent', webhookId: 'wh-123' };

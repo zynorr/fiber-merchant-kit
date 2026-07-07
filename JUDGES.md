@@ -23,7 +23,7 @@ Fiber Network payments are powerful, but raw node RPC is not enough for merchant
 - A stable API to create invoices and check payment status.
 - Persistent transaction and invoice records.
 - Webhooks for order fulfillment.
-- Retry and delivery logs for operational reliability.
+- Retry, delivery logs, and replay controls for operational reliability.
 - A dashboard to see what is happening.
 - SDKs for common app stacks.
 
@@ -79,7 +79,7 @@ Demo mode does not require a real Fiber node.
 3. Create an invoice.
 4. Open invoice detail and watch status update through polling.
 5. Register a webhook endpoint.
-6. Send a webhook test event and inspect delivery logs.
+6. Send a webhook test event, inspect delivery logs, and retry a failed delivery if one is present.
 7. Open the demo store and complete a checkout flow.
 8. Return to dashboard and inspect invoices, transactions, and balances.
 
@@ -92,7 +92,7 @@ Demo mode does not require a real Fiber node.
 | Invoice lifecycle | `packages/api-server/src/routes/invoices.ts` |
 | Idempotent DB transitions | `packages/api-server/src/db/index.ts` |
 | Fiber RPC wrapper and demo mode | `packages/api-server/src/services/fiber-client.ts` |
-| Webhook retry/signing/logs | `packages/api-server/src/services/webhook-delivery.ts` |
+| Webhook retry/signing/logs/replay | `packages/api-server/src/services/webhook-delivery.ts` |
 | Webhook API and delivery log response | `packages/api-server/src/routes/webhooks.ts` |
 | Dashboard workflows | `packages/admin-dashboard/src/pages` |
 | Demo checkout | `packages/demo-store/src/App.tsx` |
@@ -107,6 +107,7 @@ Demo mode does not require a real Fiber node.
 | Idempotent payment transition | Repeated invoice polling does not create duplicate successful transactions |
 | Webhook delivery shape | API returns clean camelCase delivery logs instead of raw DB rows |
 | Retry semantics | Non-2xx responses and network errors are both retried |
+| Manual replay | Failed delivery payloads can be re-queued without mutating the original log |
 | SDK base URL normalization | Users can pass either server root or `/api/v1` safely |
 | Demo mode | Judges can evaluate product behavior without external blockchain setup |
 
@@ -131,7 +132,7 @@ During development, the project was verified with:
 This is not just a UI demo. The system is structured around payment infrastructure concerns:
 
 - Trust boundary: Fiber credentials stay server-side.
-- Reliability: webhooks retry and record delivery attempts.
+- Reliability: webhooks retry, record delivery attempts, and support manual replay.
 - Consistency: invoice status transitions are idempotent.
 - Operability: dashboard exposes invoices, transactions, balances, and webhook logs.
 - Integration: SDKs are first-class, not an afterthought.
@@ -144,7 +145,7 @@ The current architecture is intentionally hackathon-friendly and production-shap
 | Current Choice | Production Evolution |
 |---|---|
 | sql.js SQLite | PostgreSQL adapter |
-| In-process webhook retry | Durable queue and replay controls |
+| In-process webhook retry | Durable queue workers and scheduling |
 | Single API key auth | Merchant users, teams, RBAC |
 | Poll-on-read status refresh | Background worker plus event-driven updates |
 | Demo mode | Real Fiber node deployment |

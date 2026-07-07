@@ -272,11 +272,13 @@ export function createDelivery(data: {
   event: string;
   url: string;
   payload: unknown;
-}): void {
-  getDb().prepare(`
+}): DbWebhookDelivery {
+  const d = getDb();
+  d.prepare(`
     INSERT INTO webhook_deliveries (id, webhook_id, event, url, payload)
     VALUES (?, ?, ?, ?, ?)
   `).run(data.id, data.webhookId, data.event, data.url, JSON.stringify(data.payload));
+  return d.prepare('SELECT * FROM webhook_deliveries WHERE id = ?').get<DbWebhookDelivery>(data.id)!;
 }
 
 export function updateDelivery(id: string, data: { statusCode: number; success: boolean; attempts?: number; error?: string }): void {
@@ -300,6 +302,28 @@ export function getDeliveries(webhookId: string, merchantId?: string): DbWebhook
   return getDb().prepare(
     'SELECT * FROM webhook_deliveries WHERE webhook_id = ? ORDER BY delivered_at DESC LIMIT 50',
   ).all<DbWebhookDelivery>(webhookId);
+}
+
+export function getDelivery(id: string, webhookId?: string, merchantId?: string): DbWebhookDelivery | undefined {
+  const whereConditions: string[] = ['d.id = ?'];
+  const binds: unknown[] = [id];
+
+  if (webhookId) {
+    whereConditions.push('d.webhook_id = ?');
+    binds.push(webhookId);
+  }
+
+  if (merchantId) {
+    whereConditions.push('w.merchant_id = ?');
+    binds.push(merchantId);
+  }
+
+  return getDb().prepare(`
+    SELECT d.*
+    FROM webhook_deliveries d
+    JOIN webhooks w ON w.id = d.webhook_id
+    WHERE ${whereConditions.join(' AND ')}
+  `).get<DbWebhookDelivery>(...binds);
 }
 
 // ── Transaction queries ────────────────────────────────────────
