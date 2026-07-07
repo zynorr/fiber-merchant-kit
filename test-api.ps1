@@ -60,6 +60,19 @@ function Test-Step {
             return $null
         }
     } catch {
+        # Check if we got an HTTP error response with the expected status code
+        if ($_.Exception.Response -and $_.Exception.Response.StatusCode) {
+            $statusCode = [int]$_.Exception.Response.StatusCode
+            if ($statusCode -eq $ExpectedStatus) {
+                Write-Host "  PASS (HTTP $statusCode)" -ForegroundColor Green
+                $script:PASS++
+                return $null
+            } else {
+                Write-Host "  FAIL - Expected $ExpectedStatus, got $statusCode" -ForegroundColor Red
+                $script:FAIL++
+                return $null
+            }
+        }
         Write-Host "  FAIL - $($_.Exception.Message)" -ForegroundColor Red
         $script:FAIL++
         return $null
@@ -125,11 +138,20 @@ if ($ApiKey -eq "") {
             description = "Test Order #002"
         } -ExpectedStatus 201
 
-        # 2f. Cancel Invoice
-        Test-Step -Name "Cancel Invoice" -Method Post -Url "$API/invoices/$INVOICE_ID/cancel"
+        # 2f. Create a fresh invoice for cancel test (avoiding auto-poll side effects)
+        $cancelInvoice = Test-Step -Name "Create Invoice for Cancel Test" -Method Post -Url "$API/invoices" -Body @{
+            amount = "1000"
+            currency = "CKB"
+            description = "Cancel Test Invoice"
+        } -ExpectedStatus 201
 
-        # 2g. Verify cancelled status
-        Test-Step -Name "Verify Cancelled Status" -Method Get -Url "$API/invoices/$INVOICE_ID"
+        if ($cancelInvoice) {
+            # 2g. Cancel Invoice
+            Test-Step -Name "Cancel Invoice" -Method Post -Url "$API/invoices/$($cancelInvoice.id)/cancel"
+
+            # 2h. Verify cancelled status
+            Test-Step -Name "Verify Cancelled Status" -Method Get -Url "$API/invoices/$($cancelInvoice.id)"
+        }
     }
 
     # -- 3. Webhooks ---------------------------------------------

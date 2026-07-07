@@ -1,0 +1,94 @@
+  Initialising database...
+  Database ready.
+  Demo Merchant API Key: fm_sk_87995c040b87dc78db87a82fb449c8d2e82c74f9d4bd1cd109347e0edb5b0849
+[Server] Uncaught exception: Error: listen EADDRINUSE: address already in use :::3001
+    at Server.setupListenHandle [as _listen2] (node:net:2009:16)
+    at listenInCluster (node:net:2066:12)
+    at Server.listen (node:net:2171:7)
+    at app.listen (C:\Users\ADMIN\Desktop\gungavic\fiber-merch::1 - GET /api/v1/health HTTP/1.1 200 110 - 3.436 ms
+::1 - GET /api/v1/health HTTP/1.1 200 110 - 0.366 ms
+::1 - POST /api/v1/invoices HTTP/1.1 201 640 - 21.233 ms
+::1 - GET /api/v1/invoices/f520c765-d48f-4c3e-80c5-9d11060c00e5 HTTP/1.1 200 640 - 2.049 ms
+::1 - GET /api/v1/invoices/f520c765-d48f-4c3e-80c5-9d11060c00e5/qr HTTP/1.1 200 121 - 0.890 ms
+::1 - GET /api/v1/invoices HTTP/1.1 200 1809 - 2.680 ms
+::1 - POST /api/v1/invoices HTTP/1.1 201 579 - 2.975 ms
+::1 - POST /api/v1/invoices/f520c765-d48f-4c3e-80c5-9d11060c00e5/cancel HTTP/1.1 200 642 - 2.397 ms
+::1 - GET /api/v1/invoices/f520c765-d48f-4c3e-80c5-9d11060c00e5 HTTP/1.1 200 642 - 1.019 ms
+::1 - POST /api/v1/webhooks HTTP/1.1 201 348 - 1.787 ms
+::1 - GET /api/v1/webhooks HTTP/1.1 200 350 - 0.979 ms
+::1 - GET /api/v1/webhooks/1ea2e47b-21c6-43d8-a9f9-b1efedcf3118 HTTP/1.1 200 348 - 0.789 ms
+::1 - POST /api/v1/webhooks/1ea2e47b-21c6-43d8-a9f9-b1efedcf3118/test HTTP/1.1 200 80 - 54.138 ms
+::1 - GET /api/v1/webhooks/1ea2e47b-21c6-43d8-a9f9-b1efedcf3118/deliveries HTTP/1.1 200 401 - 1.122 ms
+::1 - GET /api/v1/balance/channels HTTP/1.1 200 314 - 0.865 ms
+::1 - GET /api/v1/balance/total HTTP/1.1 200 55 - 0.954 ms
+::1 - GET /api/v1/transactions HTTP/1.1 200 1884 - 1.740 ms
+::1 - GET /api/v1/stats HTTP/1.1 200 146 - 1.839 ms
+::1 - GET /api/v1/stats/revenue?days=7 HTTP/1.1 200 44 - 1.531 ms
+::1 - GET /api/v1/invoices HTTP/1.1 401 74 - 0.199 ms
+::1 - GET /api/v1/invoices/nonexistent-id HTTP/1.1 404 29 - 0.737 ms
+::1 - POST /api/v1/webhooks HTTP/1.1 400 183 - 1.230 ms
+::1 - GET /api/v1/invoices/nonexistent-id HTTP/1.1 404 29 - 2.304 ms
+::1 - POST /api/v1/webhooks HTTP/1.1 400 183 - 1.409 ms
+::1 - GET /api/v1/health HTTP/1.1 200 110 - 0.196 ms
+::1 - POST /api/v1/invoices HTTP/1.1 201 640 - 6.608 ms
+::1 - GET /api/v1/invoices/8d5ae401-2d8b-48d1-bafb-51ce44e7d762 HTTP/1.1 200 654 - 2.798 ms
+::1 - GET /api/v1/invoices/8d5ae401-2d8b-48d1-bafb-51ce44e7d762/qr HTTP/1.1 200 121 - 1.237 ms
+::1 - GET /api/v1/invoices HTTP/1.1 200 3046 - 1.129 ms
+::1 - POST /api/v1/invoices HTTP/1.1 201 579 - 3.818 ms
+::1 - POST /api/v1/invoices/8d5ae401-2d8b-48d1-bafb-51ce44e7d762/cancel HTTP/1.1 400 51 - 0.790 ms
+::1 - GET /api/v1/invoices/8d5ae401-2d8b-48d1-bafb-51ce44e7d762 HTTP/1.1 200 654 - 0.789 ms
+::1 - POST /api/v1/webhooks HTTP/1.1 201 348 - 1.299 ms
+::1 - GET /api/v1/webhooks HTTP/1.1 200 699 - 0.582 ms
+::1 - GET /api/v1/webhooks/8bd2058b-500c-423a-977c-67ed8f3338af HTTP/1.1 200 348 - 0.569 ms
+::1 - POST /api/v1/webhooks/8bd2058b-500c-423a-977c-67ed8f3338af/test HTTP/1.1 200 80 - 4.585 ms
+::1 - GET /api/v1/webhooks/8bd2058b-500c-423a-977c-67ed8f3338af/deliveries HTTP/1.1 200 401 - 0.573 ms
+::1 - GET /api/v1/balance/channels HTTP/1.1 200 314 - 0.680 ms
+::1 - GET /api/v1/balance/total HTTP/1.1 200 55 - 0.577 ms
+::1 - GET /api/v1/transactions HTTP/1.1 200 3044 - 1.551 ms
+::1 - GET /api/v1/stats HTTP/1.1 200 150 - 0.853 ms
+::1 - GET /api/v1/stats/revenue?days=7 HTTP/1.1 200 48 - 1.049 ms
+::1 - GET /api/v1/invoices HTTP/1.1 401 74 - 0.152 ms
+::1 - GET /api/v1/invoices/nonexistent-id HTTP/1.1 404 29 - 0.553 ms
+::1 - POST /api/v1/webhooks HTTP/1.1 400 183 - 1.152 ms
+::1 - GET /api/v1/health HTTP/1.1 200 110 - 0.213 ms
+::1 - POST /api/v1/invoices HTTP/1.1 201 640 - 3.533 ms
+::1 - GET /api/v1/invoices/b732b742-57e2-4c9c-b836-16093372b3af HTTP/1.1 200 654 - 3.156 ms
+::1 - GET /api/v1/invoices/b732b742-57e2-4c9c-b836-16093372b3af/qr HTTP/1.1 200 121 - 0.630 ms
+::1 - GET /api/v1/invoices HTTP/1.1 200 4281 - 0.986 ms
+::1 - POST /api/v1/invoices HTTP/1.1 201 579 - 4.158 ms
+::1 - POST /api/v1/invoices HTTP/1.1 201 581 - 6.374 ms
+::1 - POST /api/v1/invoices/fd1011f1-0e6a-46de-9461-0809297a9153/cancel HTTP/1.1 200 583 - 1.472 ms
+::1 - GET /api/v1/invoices/fd1011f1-0e6a-46de-9461-0809297a9153 HTTP/1.1 200 583 - 0.692 ms
+::1 - POST /api/v1/webhooks HTTP/1.1 201 348 - 1.624 ms
+::1 - GET /api/v1/webhooks HTTP/1.1 200 1048 - 0.651 ms
+::1 - GET /api/v1/webhooks/cc750399-f6aa-406f-9880-91b854460625 HTTP/1.1 200 348 - 0.599 ms
+::1 - POST /api/v1/webhooks/cc750399-f6aa-406f-9880-91b854460625/test HTTP/1.1 200 80 - 4.919 ms
+::1 - GET /api/v1/webhooks/cc750399-f6aa-406f-9880-91b854460625/deliveries HTTP/1.1 200 401 - 0.775 ms
+::1 - GET /api/v1/balance/channels HTTP/1.1 200 314 - 0.720 ms
+::1 - GET /api/v1/balance/total HTTP/1.1 200 55 - 0.509 ms
+::1 - GET /api/v1/transactions HTTP/1.1 200 4574 - 1.245 ms
+::1 - GET /api/v1/stats HTTP/1.1 200 151 - 0.832 ms
+::1 - GET /api/v1/stats/revenue?days=7 HTTP/1.1 200 49 - 0.608 ms
+::1 - GET /api/v1/invoices HTTP/1.1 401 74 - 0.139 ms
+::1 - GET /api/v1/invoices/nonexistent-id HTTP/1.1 404 29 - 0.488 ms
+::1 - POST /api/v1/webhooks HTTP/1.1 400 183 - 0.774 ms
+[Webhook] Delivery failed (attempt 1/5): The operation was aborted due to timeout. Retrying in 1125.7251666472087ms...
+[Webhook] Delivery failed (attempt 1/5): The operation was aborted due to timeout. Retrying in 1460.844087750671ms...
+[Webhook] Delivery failed (attempt 1/5): The operation was aborted due to timeout. Retrying in 1568.8123424986597ms...
+[Webhook] Delivery failed (attempt 1/5): The operation was aborted due to timeout. Retrying in 1835.3867762486202ms...
+[Webhook] Delivery failed (attempt 1/5): The operation was aborted due to timeout. Retrying in 1917.9964881763326ms...
+[Webhook] Delivery failed (attempt 1/5): The operation was aborted due to timeout. Retrying in 1576.9486042713736ms...
+[Webhook] Delivery failed (attempt 1/5): The operation was aborted due to timeout. Retrying in 1869.155722764782ms...
+[Webhook] Delivery failed (attempt 1/5): The operation was aborted due to timeout. Retrying in 1773.9407471722734ms...
+[Webhook] Delivery failed (attempt 1/5): The operation was aborted due to timeout. Retrying in 1501.7573353018252ms...
+[Webhook] Delivery failed (attempt 1/5): The operation was aborted due to timeout. Retrying in 1986.4918863627872ms...
+[Webhook] Delivery failed (attempt 1/5): The operation was aborted due to timeout. Retrying in 1611.867055462424ms...
+[Webhook] Delivery failed (attempt 2/5): The operation was aborted due to timeout. Retrying in 2161.56998717176ms...
+[Webhook] Delivery failed (attempt 2/5): The operation was aborted due to timeout. Retrying in 2114.7396157616568ms...
+[Webhook] Delivery failed (attempt 2/5): The operation was aborted due to timeout. Retrying in 2248.6790472944576ms...
+[Webhook] Delivery failed (attempt 2/5): The operation was aborted due to timeout. Retrying in 2099.612382922475ms...
+[Webhook] Delivery failed (attempt 2/5): The operation was aborted due to timeout. Retrying in 2109.436658293397ms...
+[Webhook] Delivery failed (attempt 2/5): The operation was aborted due to timeout. Retrying in 2585.423536763158ms...
+[Webhook] Delivery failed (attempt 2/5): The operation was aborted due to timeout. Retrying in 2715.93263680782ms...
+[Webhook] Delivery failed (attempt 2/5): The operation was aborted due to timeout. Retrying in 2383.923560762559ms...
+[Webhook] Delivery failed (attempt 3/5): The operation was aborted due to timeout. Retrying in 4240.324724716726ms...
