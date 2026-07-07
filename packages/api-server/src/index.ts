@@ -12,17 +12,30 @@
 
 import { createApp } from './app';
 import { initDatabase, closeDb, seedDemoMerchant } from './db';
-
-const PORT = process.env.PORT || 3001;
+import { validateEnv, formatWarnings } from './env';
 
 async function main() {
+  // -- Validate environment variables ---------------------------
+  const { env, warnings } = validateEnv();
+
+  if (warnings.length > 0) {
+    console.log(formatWarnings(warnings));
+  }
+
+  // Fail fast on configuration errors
+  const errors = warnings.filter((w) => w.severity === 'error');
+  if (errors.length > 0) {
+    console.error('  Fatal: Fix the above configuration errors and restart the server.');
+    process.exit(1);
+  }
+
   // -- Initialise database (loads sql.js WASM + schema) ----------
   console.log('  Initialising database...');
   await initDatabase();
   console.log('  Database ready.');
 
   // -- Seed demo merchant ----------------------------------------
-  if (process.env.NODE_ENV !== 'production') {
+  if (env.NODE_ENV !== 'production') {
     const demo = seedDemoMerchant();
     console.log(`  Demo Merchant API Key: ${demo.apiKey}`);
   }
@@ -30,13 +43,13 @@ async function main() {
   // -- Create and start HTTP server ------------------------------
   const app = createApp();
 
-  const server = app.listen(PORT, () => {
+  const server = app.listen(env.PORT, () => {
     console.log(`
   +----------------------------------------------+
   |      Fiber Merchant Kit -- API Server         |
-  |  Server:   http://localhost:${PORT}              |
-  |  API:      http://localhost:${PORT}/api/v1       |
-  |  Mode:     ${process.env.FIBER_NODE_RPC_URL ? 'Live (Fiber Node)' : 'Demo'}         |
+  |  Server:   http://localhost:${env.PORT}              |
+  |  API:      http://localhost:${env.PORT}/api/v1       |
+  |  Mode:     ${env.FIBER_NODE_RPC_URL ? 'Live (Fiber Node)' : 'Demo'}         |
   +----------------------------------------------+
     `);
   });
