@@ -137,7 +137,7 @@ During development, the project was verified with:
 - TypeScript checks across API, SDK, dashboard, and demo store.
 - Python SDK smoke test in this environment.
 - Real sql.js database smoke test for invoice transition behavior.
-- Fiber testnet smoke harness for `node_info`, `list_channels`, and optional `new_invoice`.
+- Fiber testnet smoke against disposable FNN `v0.8.1`: `node_info`, `list_channels`, and optional `new_invoice` passed.
 
 ## Senior Engineering Notes
 

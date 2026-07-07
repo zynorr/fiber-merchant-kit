@@ -71,4 +71,15 @@ This creates a small testnet invoice through `new_invoice` and prints the invoic
 
 ## Current Local Result
 
-In this development environment, the smoke command was verified for the missing-config path. It correctly refuses to run without a real `FIBER_NODE_RPC_URL`. A live testnet pass still requires an actual FNN RPC URL/token from the project operator.
+On July 7, 2026, this repo was smoke-tested against a disposable local FNN `v0.8.1` node using the official bundled testnet config.
+
+Result:
+
+| Check | Result |
+|---|---|
+| Missing config guard | Passed, exits clearly when `FIBER_NODE_RPC_URL` is not set |
+| `node_info` | Passed |
+| `list_channels` | Passed, returned 0 channels on the fresh node |
+| Optional `new_invoice` | Passed, created a testnet invoice for amount `1000` |
+
+This proves the Merchant Kit live RPC adapter can talk to a real FNN testnet node and create invoices. It does not prove payment settlement, because the disposable node had no funded channels. A full settlement test still requires two funded testnet nodes or an existing funded channel.
