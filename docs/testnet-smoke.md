@@ -82,7 +82,7 @@ Result:
 | `list_channels` | Passed, returned 0 channels on the fresh node |
 | Optional `new_invoice` | Passed, created a testnet invoice for amount `1000` |
 
-This proves the Merchant Kit live RPC adapter can talk to a real FNN testnet node and create invoices. It does not prove payment settlement, because the disposable node had no funded channels. A full settlement test still requires two funded testnet nodes or an existing funded channel.
+This proves the Merchant Kit live RPC adapter can talk to a real FNN testnet node and create invoices. It is a low-risk readiness check, not a funded settlement test. The funded settlement evidence below records the full live payment path.
 
 ## Extended Live API Result
 
@@ -106,4 +106,57 @@ Observed result:
 | `GET /api/v1/invoices/:id` | Passed, returned cached merchant invoice with status `pending` |
 | Adapter `get_invoice` | Passed, fetched the FNN invoice back as `Open` |
 
-This verifies the end-to-end path from Merchant API route to real FNN testnet RPC. Payment settlement remains the next milestone and requires a funded channel.
+This verifies the end-to-end path from Merchant API route to real FNN testnet RPC.
+
+## Funded Live Settlement Result
+
+On July 7, 2026, a disposable two-node Fiber testnet setup completed a funded off-chain payment through public Fiber infrastructure.
+
+### Test Topology
+
+| Node | Role | Pubkey |
+|---|---|---|
+| Node A | Sender | `0312ee9ebfbad59a15d609f024083670e2b48fb5ad840e4b3931fc62bdd1db4d60` |
+| Node B | Receiver | `02b7cbbd482b18548ccd137ec6b9b1f0ac31f6ca028cc786ff13ce7034ac8581a8` |
+| Public node1 | Relay, `fiber-testnet-public-bottle` | `02b6d4e3ab86a2ca2fad6fae0ecb2e1e559e0b911939872a90abdda6d20302be71` |
+| Public node2 | Tested relay, `fiber-testnet-public-bracer` | `0291a6576bd5a94bd74b27080a48340875338fff9f6d6361fe6b8db8d0d1912fcc` |
+
+The originally documented nodeA -> node1 -> node2 -> nodeB route could not complete because the live graph did not expose an enabled CKB bridge between public node1 and public node2 at test time. The successful route used nodeA -> public node1 -> nodeB.
+
+### Faucet Funding
+
+| Node | Faucet Event | Faucet Funding Tx |
+|---|---|---|
+| Node A | `704045` | `0x8c29d911ec730363dd653a1ea1ef52f5589b4b57bf5444cfc0ad4511f2a882bd` |
+| Node B | `704046` | `0xcf7187de28631a792d92576455c6dbeef9ccfa1750282e6e50b5152efdeb0c05` |
+
+### Channel Evidence
+
+| Channel | Status | Funding Tx / Outpoint | Notes |
+|---|---|---|---|
+| Node A <-> public node1 | `ChannelReady` | `0x7b259a4fae560207d588c3adb37c965856688df6a334e0f6baaa998a0ff14f5100000000` | Initial local balance `0x9502f9000`, remote `0x38407b700` |
+| Node B <-> public node2 | `ChannelReady` | `0xded9d30c60ddee74db8ef18fc2cdf4f583b310c5257b3d189c41a296f5029b9f00000000` | Funded successfully, but not used for final payment because node1-node2 bridge was unavailable |
+| Node B <-> public node1 | `ChannelReady` | `0xb668281ec596989434578adbeadab8e049efaed55de5979a3392300b420a91b700000000` | Used for final successful payment |
+
+Confirmed committed funding transaction hashes:
+
+- Node A channel: `0x7b259a4fae560207d588c3adb37c965856688df6a334e0f6baaa998a0ff14f51`
+- Node B to node2 channel: `0xded9d30c60ddee74db8ef18fc2cdf4f583b310c5257b3d189c41a296f5029b9f`
+- Node B to node1 channel: `0xb668281ec596989434578adbeadab8e049efaed55de5979a3392300b420a91b7`
+
+### Payment Evidence
+
+| Field | Value |
+|---|---|
+| Route | Node A -> public node1 -> Node B |
+| Currency | `Fibt` |
+| Amount | `0x5f5e100` (1 CKB, 100,000,000 shannons) |
+| Payment hash | `0xe28512a5139dcd8ce648d6ab8e2a6924f4ce1f64d1ce52a45212689dca859864` |
+| Payment status | `Success` |
+| Fee | `0x186a0` (100,000 shannons) |
+| Sender final local balance | `0x94a382860` |
+| Receiver final local balance | `0x956257100` |
+
+The sender balance moved from `0x9502f9000` to `0x94a382860`, which equals the 1 CKB payment plus the `0x186a0` relay fee. The receiver balance moved from `0x9502f9000` to `0x956257100`, which equals a 1 CKB receipt.
+
+This proves real funded Fiber testnet settlement with live public relay infrastructure, beyond the local demo payment simulation and beyond read-only RPC smoke checks.

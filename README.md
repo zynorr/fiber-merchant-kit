@@ -93,7 +93,7 @@ Full architecture: [docs/architecture.md](docs/architecture.md)
 | [docs/api-reference.md](docs/api-reference.md) | Endpoint reference and response shapes |
 | [docs/getting-started.md](docs/getting-started.md) | Local setup walkthrough |
 | [docs/demo-evidence.md](docs/demo-evidence.md) | Live demo checkout evidence with paid transaction |
-| [docs/testnet-smoke.md](docs/testnet-smoke.md) | Real Fiber testnet smoke test path |
+| [docs/testnet-smoke.md](docs/testnet-smoke.md) | Real Fiber testnet smoke path and funded settlement evidence |
 | [JUDGES.md](JUDGES.md) | Hackathon review guide |
 
 ## Quick Start
@@ -134,7 +134,7 @@ When the API server starts, copy the printed `fm_sk_...` API key and use it in t
 5. Open the demo store, add products, and start checkout.
 6. Use the demo payment action to complete checkout, then confirm the paid invoice in the dashboard.
 
-Demo mode works without a real Fiber node. For testnet/production, set `FIBER_NODE_RPC_URL` plus either `FIBER_NODE_RPC_AUTH_TOKEN` for protected Fiber RPC endpoints or `FIBER_NODE_RPC_USER`/`FIBER_NODE_RPC_PASSWORD` for private basic-auth setups.
+Demo mode works without a real Fiber node. For testnet/production, set `FIBER_NODE_RPC_URL` plus either `FIBER_NODE_RPC_AUTH_TOKEN` for protected Fiber RPC endpoints or `FIBER_NODE_RPC_USER`/`FIBER_NODE_RPC_PASSWORD` for private basic-auth setups. See [docs/testnet-smoke.md](docs/testnet-smoke.md) for both RPC smoke checks and the July 7, 2026 funded settlement evidence.
 
 ## Core Technical Decisions
 
@@ -213,7 +213,7 @@ invoice = client.invoices.create(
 
 ## Verification
 
-The project includes route tests, validation tests, SDK tests, strict TypeScript checks, and a demo mode for end-to-end manual review.
+The project includes route tests, validation tests, SDK tests, strict TypeScript checks, demo mode for end-to-end manual review, and recorded live Fiber testnet settlement evidence.
 
 Useful commands:
 

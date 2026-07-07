@@ -9,7 +9,7 @@ Start here if you are reviewing the project from the `docs/` folder.
 | [getting-started.md](getting-started.md) | Local setup and integration examples |
 | [api-reference.md](api-reference.md) | REST endpoint request and response reference |
 | [demo-evidence.md](demo-evidence.md) | Live demo checkout evidence with paid invoice and transaction ID |
-| [testnet-smoke.md](testnet-smoke.md) | Real FNN testnet smoke evidence |
+| [testnet-smoke.md](testnet-smoke.md) | Real FNN testnet smoke and funded settlement evidence |
 | [../API.md](../API.md) | One-page API quick sheet |
 
 Recommended judge path:
@@ -17,4 +17,4 @@ Recommended judge path:
 1. Read [../JUDGES.md](../JUDGES.md).
 2. Skim [architecture.md](architecture.md).
 3. Run the local demo from [getting-started.md](getting-started.md).
-4. Inspect the implementation files linked from the judge guide.
+4. Inspect the live settlement record in [testnet-smoke.md](testnet-smoke.md).

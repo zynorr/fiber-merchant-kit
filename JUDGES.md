@@ -16,7 +16,7 @@ Fiber Merchant Kit is merchant payment infrastructure for the Fiber Network: it 
 | 15 minutes | Run the project | API, dashboard, and demo store working together |
 | 20 minutes | Inspect SDKs and dashboard | Developer integration plus merchant operation workflow |
 | Evidence | Open [docs/demo-evidence.md](docs/demo-evidence.md) | Paid demo checkout transaction ID and invoice proof |
-| Optional | Run [docs/testnet-smoke.md](docs/testnet-smoke.md) | Confirms a real Fiber testnet node can answer the app's RPC adapter |
+| Optional | Read/run [docs/testnet-smoke.md](docs/testnet-smoke.md) | Confirms real Fiber testnet RPC readiness and records a funded live settlement |
 
 ## Why This Project Exists
 
@@ -82,6 +82,8 @@ npm run testnet:smoke
 
 The read-only smoke verifies `node_info` and `list_channels`. Set `FIBER_TESTNET_CREATE_INVOICE=true` only when you want the smoke to create a testnet invoice through `new_invoice`.
 
+The same evidence file also includes a funded live testnet settlement completed on July 7, 2026: three committed funding transactions, two `ChannelReady` public channels for the successful route, and a 1 CKB `Fibt` payment with status `Success`.
+
 ## Suggested Demo Script
 
 1. Start the repo and copy the printed `fm_sk_...` API key.
@@ -140,6 +142,7 @@ During development, the project was verified with:
 - Real sql.js database smoke test for invoice transition behavior.
 - Live demo checkout: invoice `ebbd43bf-6b04-4248-a670-b9476f0bd92d` paid and transaction `987865e5-6d8c-47df-9d8c-ea906598a3b8` promoted to `Succeeded`.
 - Fiber testnet smoke against FNN `v0.8.1`: `node_info`, `list_channels`, optional `new_invoice`, graph sync, and Merchant API live-mode invoice creation passed.
+- Funded Fiber testnet settlement: payment hash `0xe28512a5139dcd8ce648d6ab8e2a6924f4ce1f64d1ce52a45212689dca859864` reached `Success` for a 1 CKB `Fibt` payment routed through public node1.
 
 ## Senior Engineering Notes
 
@@ -163,7 +166,7 @@ The current architecture is intentionally hackathon-friendly and production-shap
 | Single API key auth | Merchant users, teams, RBAC |
 | Poll-on-read status refresh | Background worker plus event-driven updates |
 | Demo mode | Real Fiber node deployment |
-| Testnet smoke | Funded multi-node settlement scenario |
+| Testnet smoke plus funded settlement evidence | Repeatable production monitoring against funded channels |
 
 ## Useful Links
 
