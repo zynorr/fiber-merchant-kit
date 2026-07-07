@@ -92,6 +92,7 @@ Full architecture: [docs/architecture.md](docs/architecture.md)
 | [packages/sdk-python](packages/sdk-python) | Python SDK with webhook signature helper |
 | [docs/api-reference.md](docs/api-reference.md) | Endpoint reference and response shapes |
 | [docs/getting-started.md](docs/getting-started.md) | Local setup walkthrough |
+| [docs/demo-evidence.md](docs/demo-evidence.md) | Live demo checkout evidence with paid transaction |
 | [docs/testnet-smoke.md](docs/testnet-smoke.md) | Real Fiber testnet smoke test path |
 | [JUDGES.md](JUDGES.md) | Hackathon review guide |
 
@@ -227,6 +228,8 @@ The testnet smoke command requires a real FNN RPC endpoint and is documented in 
 
 Latest smoke result: on July 7, 2026, the adapter and Merchant API passed live-mode invoice creation against a local FNN `v0.8.1` testnet node using the official config. The node connected to a bootnode peer and saw 46 graph nodes plus 98 graph channels. Payment settlement still requires a funded channel.
 
+Latest demo checkout evidence: the local demo store completed a paid checkout and created transaction `987865e5-6d8c-47df-9d8c-ea906598a3b8`; see [docs/demo-evidence.md](docs/demo-evidence.md).
+
 ## Production Notes
 
 Demo mode is intentionally frictionless for judging. For production:
@@ -243,6 +246,7 @@ Demo mode is intentionally frictionless for judging. For production:
 - [Judge Guide](JUDGES.md)
 - [Architecture](docs/architecture.md)
 - [Getting Started](docs/getting-started.md)
+- [Demo Evidence](docs/demo-evidence.md)
 - [Fiber Testnet Smoke](docs/testnet-smoke.md)
 - [API Reference](docs/api-reference.md)
 - [Quick API Sheet](API.md)

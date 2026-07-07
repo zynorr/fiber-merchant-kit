@@ -15,6 +15,7 @@ Fiber Merchant Kit is merchant payment infrastructure for the Fiber Network: it 
 | 10 minutes | Inspect the API and webhook core | `packages/api-server/src/routes/invoices.ts`, `packages/api-server/src/services/webhook-delivery.ts` |
 | 15 minutes | Run the project | API, dashboard, and demo store working together |
 | 20 minutes | Inspect SDKs and dashboard | Developer integration plus merchant operation workflow |
+| Evidence | Open [docs/demo-evidence.md](docs/demo-evidence.md) | Paid demo checkout transaction ID and invoice proof |
 | Optional | Run [docs/testnet-smoke.md](docs/testnet-smoke.md) | Confirms a real Fiber testnet node can answer the app's RPC adapter |
 
 ## Why This Project Exists
@@ -137,6 +138,7 @@ During development, the project was verified with:
 - TypeScript checks across API, SDK, dashboard, and demo store.
 - Python SDK smoke test in this environment.
 - Real sql.js database smoke test for invoice transition behavior.
+- Live demo checkout: invoice `ebbd43bf-6b04-4248-a670-b9476f0bd92d` paid and transaction `987865e5-6d8c-47df-9d8c-ea906598a3b8` promoted to `Succeeded`.
 - Fiber testnet smoke against FNN `v0.8.1`: `node_info`, `list_channels`, optional `new_invoice`, graph sync, and Merchant API live-mode invoice creation passed.
 
 ## Senior Engineering Notes
@@ -168,6 +170,7 @@ The current architecture is intentionally hackathon-friendly and production-shap
 - [README](README.md)
 - [Architecture](docs/architecture.md)
 - [Getting Started](docs/getting-started.md)
+- [Demo Evidence](docs/demo-evidence.md)
 - [Fiber Testnet Smoke](docs/testnet-smoke.md)
 - [API Reference](docs/api-reference.md)
 - [Hackathon Submission](hackathon-submission.md)

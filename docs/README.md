@@ -8,6 +8,8 @@ Start here if you are reviewing the project from the `docs/` folder.
 | [architecture.md](architecture.md) | System design, data flows, state model, tradeoffs |
 | [getting-started.md](getting-started.md) | Local setup and integration examples |
 | [api-reference.md](api-reference.md) | REST endpoint request and response reference |
+| [demo-evidence.md](demo-evidence.md) | Live demo checkout evidence with paid invoice and transaction ID |
+| [testnet-smoke.md](testnet-smoke.md) | Real FNN testnet smoke evidence |
 | [../API.md](../API.md) | One-page API quick sheet |
 
 Recommended judge path:
