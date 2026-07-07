@@ -26,6 +26,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Build SDK (required by downstream packages for type resolution)
+        run: npm run build --workspace=packages/sdk-typescript
+
       - name: TypeScript lint (tsc --noEmit) - all packages
         run: npm run lint --workspaces --if-present
 
