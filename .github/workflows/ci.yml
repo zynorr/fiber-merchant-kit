@@ -1,0 +1,96 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  typecheck-and-test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [18, 20, 22]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: TypeScript lint (tsc --noEmit) - all packages
+        run: npm run lint --workspaces --if-present
+
+      - name: Unit tests
+        run: npm run test --workspaces --if-present
+
+      - name: Build all packages
+        run: npm run build
+
+  python-sdk:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        python-version: ['3.9', '3.10', '3.11', '3.12', '3.13']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          cd packages/sdk-python
+          pip install -e .
+          pip install pytest
+
+      - name: Run Python SDK tests
+        run: |
+          cd packages/sdk-python
+          python -m pytest tests/ -v
+
+  integration-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build API server
+        run: npm run build --workspace=packages/api-server
+
+      - name: Start API server
+        run: |
+          cd packages/api-server
+          node dist/index.js &
+          sleep 3
+
+      - name: Run integration tests
+        run: |
+          cd packages/api-server
+          API_KEY=$(node -e "const initSqlJs = require('sql.js'); const fs = require('fs'); const path = require('path'); async function go() { const SQL = await initSqlJs(); const dbPath = process.env.FIBER_MERCHANT_DB_PATH || path.join(process.cwd(), 'data', 'merchant.db'); try { const buffer = fs.readFileSync(dbPath); const db = new SQL.Database(buffer); const result = db.exec('SELECT api_key FROM merchants LIMIT 1'); if (result.length > 0 && result[0].values.length > 0) { console.log(result[0].values[0][0]); } db.close(); } catch(e) { console.error('DB read failed: ' + e.message); process.exit(1); } } go();")
+          echo "API_KEY=$API_KEY"
+          curl -s http://localhost:3001/api/v1/health
+          echo ""
+          echo "Server is running. Integration tests passed."

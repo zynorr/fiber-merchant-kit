@@ -11,8 +11,8 @@
   ],
   "scripts": {
     "build": "npm run build --workspaces",
-    "dev": "concurrently \"npm run dev -w packages/server\" \"npm run dev -w packages/dashboard\" \"npm run dev -w packages/demo-store\"",
-    "start": "npm run start -w packages/server",
+    "dev": "concurrently \"npm run dev -w packages/api-server\" \"npm run dev -w packages/admin-dashboard\" \"npm run dev -w packages/demo-store\"",
+    "start": "npm run start -w packages/api-server",
     "test": "npm run test --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present"
   },

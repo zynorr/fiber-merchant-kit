@@ -1,15 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MerchantClient } from './client';
-import type { $Fetch } from 'ofetch';
+
+// Track the ofetch.create mock calls for base URL assertions
+let createOptions: Record<string, unknown> = {};
 
 // Mock ofetch
 vi.mock('ofetch', () => ({
   ofetch: {
     create: vi.fn((options: Record<string, unknown>) => {
-      // Return a mock $Fetch function that stores the baseURL for assertions
-      const mockFetch = vi.fn() as unknown as $Fetch;
-      mockFetch.baseURL = options.baseURL;
-      return mockFetch;
+      createOptions = options;
+      return vi.fn();
     }),
   },
 }));
@@ -33,11 +33,10 @@ describe('MerchantClient', () => {
 
   describe('constructor', () => {
     it('should create a client with the correct base URL (appending /api/v1)', () => {
-      expect(mockFetch.baseURL).toBe('http://localhost:3001/api/v1');
+      expect(createOptions.baseURL).toBe('http://localhost:3001/api/v1');
     });
 
     it('should handle trailing slashes in base URL gracefully', () => {
-      // The constructor strips trailing slashes, this should not cause issues
       const clientWithSlash = new MerchantClient({
         baseUrl: 'http://localhost:3001/',
         apiKey: mockApiKey,
@@ -238,10 +237,10 @@ describe('MerchantClient', () => {
     describe('update', () => {
       it('should PATCH /webhooks/:id', async () => {
         mockFetch.mockResolvedValue({ ...mockWebhook, active: false });
-        const result = await client.webhooks.update('wh-123', { active: false });
+        const result = await client.webhooks.update('wh-123', { description: 'Updated' });
         expect(mockFetch).toHaveBeenCalledWith('/webhooks/wh-123', {
           method: 'PATCH',
-          body: { active: false },
+          body: { description: 'Updated' },
         });
         expect(result.active).toBe(false);
       });

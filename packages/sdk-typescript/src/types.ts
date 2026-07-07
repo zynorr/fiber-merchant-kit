@@ -81,6 +81,7 @@ export interface RegisterWebhookRequest {
   events: WebhookEvent[];
   secret?: string;
   description?: string;
+  active?: boolean;
 }
 
 /** Webhook endpoint */
