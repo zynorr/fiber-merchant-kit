@@ -18,8 +18,38 @@ import crypto from 'crypto';
 import { toCamelCase } from '../lib/utils';
 import { z } from 'zod';
 import { registerWebhookSchema, updateWebhookSchema } from '../validation';
+import type { DbWebhook, DbWebhookDelivery } from '../db/types';
 
 const router = Router();
+
+function formatWebhook(webhook: DbWebhook): Record<string, unknown> {
+  return {
+    ...toCamelCase(webhook),
+    active: Boolean(webhook.active),
+  };
+}
+
+function formatDelivery(delivery: DbWebhookDelivery): Record<string, unknown> {
+  let payload: unknown = delivery.payload;
+  if (typeof delivery.payload === 'string') {
+    try {
+      payload = JSON.parse(delivery.payload);
+    } catch { /* keep raw payload */ }
+  }
+
+  return {
+    id: delivery.id,
+    webhookId: delivery.webhook_id,
+    event: delivery.event,
+    url: delivery.url,
+    status: delivery.status_code || 0,
+    success: Boolean(delivery.success),
+    attempts: delivery.attempts || 0,
+    payload,
+    error: delivery.error,
+    deliveredAt: delivery.delivered_at,
+  };
+}
 
 // ── Register Webhook ──────────────────────────────────────────
 
@@ -40,7 +70,7 @@ router.post('/', (req: AuthenticatedRequest, res: Response) => {
       merchantId: req.merchantId,
     });
 
-    res.status(201).json(toCamelCase(webhook));
+    res.status(201).json(formatWebhook(webhook));
   } catch (err: unknown) {
     if (err instanceof z.ZodError) {
       res.status(400).json({ error: 'Validation failed', details: err.issues });
@@ -56,7 +86,7 @@ router.post('/', (req: AuthenticatedRequest, res: Response) => {
 router.get('/', (req: AuthenticatedRequest, res: Response) => {
   try {
     const webhooks = db.listWebhooks(req.merchantId);
-    res.json(webhooks.map(toCamelCase));
+    res.json(webhooks.map(formatWebhook));
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     res.status(500).json({ error: message });
@@ -67,12 +97,12 @@ router.get('/', (req: AuthenticatedRequest, res: Response) => {
 
 router.get('/:id', (req: AuthenticatedRequest, res: Response) => {
   try {
-    const webhook = db.getWebhook(req.params.id);
+    const webhook = db.getWebhook(req.params.id, req.merchantId);
     if (!webhook) {
       res.status(404).json({ error: 'Webhook not found' });
       return;
     }
-    res.json(toCamelCase(webhook));
+    res.json(formatWebhook(webhook));
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     res.status(500).json({ error: message });
@@ -84,12 +114,12 @@ router.get('/:id', (req: AuthenticatedRequest, res: Response) => {
 router.patch('/:id', (req: AuthenticatedRequest, res: Response) => {
   try {
     const parsed = updateWebhookSchema.parse(req.body);
-    const webhook = db.updateWebhook(req.params.id, { ...parsed });
+    const webhook = db.updateWebhook(req.params.id, { ...parsed }, req.merchantId);
     if (!webhook) {
       res.status(404).json({ error: 'Webhook not found' });
       return;
     }
-    res.json(toCamelCase(webhook));
+    res.json(formatWebhook(webhook));
   } catch (err: unknown) {
     if (err instanceof z.ZodError) {
       res.status(400).json({ error: 'Validation failed', details: err.issues });
@@ -104,7 +134,11 @@ router.patch('/:id', (req: AuthenticatedRequest, res: Response) => {
 
 router.delete('/:id', (req: AuthenticatedRequest, res: Response) => {
   try {
-    db.deleteWebhook(req.params.id);
+    const deleted = db.deleteWebhook(req.params.id, req.merchantId);
+    if (!deleted) {
+      res.status(404).json({ error: 'Webhook not found' });
+      return;
+    }
     res.status(204).send();
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
@@ -116,8 +150,14 @@ router.delete('/:id', (req: AuthenticatedRequest, res: Response) => {
 
 router.get('/:id/deliveries', (req: AuthenticatedRequest, res: Response) => {
   try {
-    const deliveries = db.getDeliveries(req.params.id);
-    res.json(deliveries);
+    const webhook = db.getWebhook(req.params.id, req.merchantId);
+    if (!webhook) {
+      res.status(404).json({ error: 'Webhook not found' });
+      return;
+    }
+
+    const deliveries = db.getDeliveries(req.params.id, req.merchantId);
+    res.json(deliveries.map(formatDelivery));
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     res.status(500).json({ error: message });
@@ -128,7 +168,7 @@ router.get('/:id/deliveries', (req: AuthenticatedRequest, res: Response) => {
 
 router.post('/:id/test', async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const webhook = db.getWebhook(req.params.id);
+    const webhook = db.getWebhook(req.params.id, req.merchantId);
     if (!webhook) {
       res.status(404).json({ error: 'Webhook not found' });
       return;
@@ -141,7 +181,7 @@ router.post('/:id/test', async (req: AuthenticatedRequest, res: Response) => {
       status: 'paid',
       paidAt: new Date().toISOString(),
       _test: true,
-    });
+    }, { merchantId: req.merchantId, webhookId: req.params.id });
 
     res.json({ message: 'Test event sent', webhookId: req.params.id });
   } catch (err: unknown) {

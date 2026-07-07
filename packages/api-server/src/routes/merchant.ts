@@ -14,6 +14,8 @@ import { AuthenticatedRequest } from '../middleware/auth';
 import * as db from '../db';
 import { toCamelCase, rowsToCamelCase } from '../lib/utils';
 import { getFiberClient } from '../lib/fiber-client';
+import { z } from 'zod';
+import { listTransactionsQuerySchema, revenueQuerySchema } from '../validation';
 
 const router = Router();
 
@@ -21,12 +23,12 @@ const router = Router();
 
 router.get('/transactions', (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { status, direction, limit, cursor } = req.query;
+    const { status, direction, limit, cursor } = listTransactionsQuerySchema.parse(req.query);
     const result = db.listTransactions({
-      status: status as string | undefined,
-      direction: direction as string | undefined,
-      limit: limit ? Number(limit) : undefined,
-      cursor: cursor as string | undefined,
+      status,
+      direction,
+      limit,
+      cursor,
       merchantId: req.merchantId,
     });
     res.json({
@@ -34,6 +36,10 @@ router.get('/transactions', (req: AuthenticatedRequest, res: Response) => {
       items: rowsToCamelCase(result.items),
     });
   } catch (err: unknown) {
+    if (err instanceof z.ZodError) {
+      res.status(400).json({ error: 'Validation failed', details: err.issues });
+      return;
+    }
     const message = err instanceof Error ? err.message : String(err);
     res.status(500).json({ error: message });
   }
@@ -43,7 +49,7 @@ router.get('/transactions', (req: AuthenticatedRequest, res: Response) => {
 
 router.get('/transactions/:id', (req: AuthenticatedRequest, res: Response) => {
   try {
-    const row = db.getTransaction(req.params.id);
+    const row = db.getTransaction(req.params.id, req.merchantId);
     if (!row) {
       res.status(404).json({ error: 'Transaction not found' });
       return;
@@ -126,10 +132,14 @@ router.get('/stats', async (req: AuthenticatedRequest, res: Response) => {
 
 router.get('/stats/revenue', (req: AuthenticatedRequest, res: Response) => {
   try {
-    const days = req.query.days ? Number(req.query.days) : 30;
+    const { days = 30 } = revenueQuerySchema.parse(req.query);
     const history = db.getRevenueHistory(days, req.merchantId);
     res.json(history);
   } catch (err: unknown) {
+    if (err instanceof z.ZodError) {
+      res.status(400).json({ error: 'Validation failed', details: err.issues });
+      return;
+    }
     const message = err instanceof Error ? err.message : String(err);
     res.status(500).json({ error: message });
   }

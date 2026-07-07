@@ -9,7 +9,7 @@ Usage:
     from fiber_merchant import MerchantClient
 
     client = MerchantClient(
-        base_url="http://localhost:3001/api/v1",
+        base_url="http://localhost:3001",
         api_key="fm_sk_..."
     )
 
@@ -25,7 +25,7 @@ Usage:
     print(f"Status: {status.status}")
 """
 
-from .client import MerchantClient
+from .client import MerchantClient, verify_webhook_signature
 
-__all__ = ["MerchantClient"]
+__all__ = ["MerchantClient", "verify_webhook_signature"]
 __version__ = "1.0.0"

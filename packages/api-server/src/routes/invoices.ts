@@ -17,9 +17,20 @@ import crypto from 'crypto';
 import { toCamelCase, rowsToCamelCase } from '../lib/utils';
 import { getFiberClient } from '../lib/fiber-client';
 import { z } from 'zod';
-import { createInvoiceSchema, refundInvoiceSchema } from '../validation';
+import { createInvoiceSchema, listInvoicesQuerySchema, refundInvoiceSchema } from '../validation';
 
 const router = Router();
+
+function emitWebhookEvent(
+  event: string,
+  payload: Record<string, unknown>,
+  merchantId?: string,
+): void {
+  void Promise.resolve(dispatchWebhookEvent(event, payload, { merchantId })).catch((err: unknown) => {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`[Invoices] Failed to dispatch ${event}:`, message);
+  });
+}
 
 // ── Create Invoice ────────────────────────────────────────────
 
@@ -74,17 +85,17 @@ router.post('/', async (req: AuthenticatedRequest, res: Response) => {
     });
 
     // Fire webhook event asynchronously
-    dispatchWebhookEvent('invoice.created', {
+    emitWebhookEvent('invoice.created', {
       id: invoiceId,
       amount: String(amount),
       currency: currency || 'CKB',
       status: 'pending',
       invoiceAddress: invoiceResult.invoiceAddress,
       expiresAt,
-    });
+    }, req.merchantId);
 
     // Return invoice to merchant (camelCase)
-    const invoice = db.getInvoice(invoiceId);
+    const invoice = db.getInvoice(invoiceId, req.merchantId);
     res.status(201).json(toCamelCase(invoice!));
   } catch (err: unknown) {
     if (err instanceof z.ZodError) {
@@ -101,11 +112,11 @@ router.post('/', async (req: AuthenticatedRequest, res: Response) => {
 
 router.get('/', (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { status, limit, cursor } = req.query;
+    const { status, limit, cursor } = listInvoicesQuerySchema.parse(req.query);
     const result = db.listInvoices({
-      status: status as string | undefined,
-      limit: limit ? Number(limit) : undefined,
-      cursor: cursor as string | undefined,
+      status,
+      limit,
+      cursor,
       merchantId: req.merchantId,
     });
     res.json({
@@ -113,6 +124,10 @@ router.get('/', (req: AuthenticatedRequest, res: Response) => {
       items: rowsToCamelCase(result.items),
     });
   } catch (err: unknown) {
+    if (err instanceof z.ZodError) {
+      res.status(400).json({ error: 'Validation failed', details: err.issues });
+      return;
+    }
     const message = err instanceof Error ? err.message : String(err);
     res.status(500).json({ error: message });
   }
@@ -122,7 +137,7 @@ router.get('/', (req: AuthenticatedRequest, res: Response) => {
 
 router.get('/:id', async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const invoice = db.getInvoice(req.params.id);
+    const invoice = db.getInvoice(req.params.id, req.merchantId);
     if (!invoice) {
       res.status(404).json({ error: 'Invoice not found' });
       return;
@@ -134,38 +149,68 @@ router.get('/:id', async (req: AuthenticatedRequest, res: Response) => {
       try {
         const nodeStatus = await fiber.getInvoiceStatus(invoice.payment_hash);
         if (nodeStatus.status === 'Paid') {
-          db.updateInvoiceStatus(invoice.id, 'paid');
-          db.createTransaction({
-            id: crypto.randomUUID(),
-            paymentHash: invoice.payment_hash,
-            invoiceId: invoice.id,
-            direction: 'incoming',
-            amount: invoice.amount,
-            currency: invoice.currency,
-            status: 'Succeeded',
-          });
-          dispatchWebhookEvent('invoice.paid', {
-            id: invoice.id,
-            amount: invoice.amount,
-            currency: invoice.currency,
-            status: 'paid',
-            paidAt: new Date().toISOString(),
-          });
+          const changed = db.updateInvoiceStatus(invoice.id, 'paid', req.merchantId);
+          if (changed) {
+            db.upsertIncomingPaymentTransaction({
+              paymentHash: invoice.payment_hash,
+              invoiceId: invoice.id,
+              amount: invoice.amount,
+              currency: invoice.currency,
+              description: invoice.description,
+              metadata: typeof invoice.metadata === 'string' ? undefined : invoice.metadata,
+            });
+            emitWebhookEvent('invoice.paid', {
+              id: invoice.id,
+              amount: invoice.amount,
+              currency: invoice.currency,
+              status: 'paid',
+              paidAt: new Date().toISOString(),
+            }, req.merchantId);
+          }
+        } else if (nodeStatus.status === 'Received' && invoice.status === 'pending') {
+          const changed = db.updateInvoiceStatus(invoice.id, 'received', req.merchantId);
+          if (changed) {
+            emitWebhookEvent('invoice.received', {
+              id: invoice.id,
+              amount: invoice.amount,
+              currency: invoice.currency,
+              status: 'received',
+            }, req.merchantId);
+          }
         } else if (nodeStatus.status === 'Expired' && invoice.status === 'pending') {
-          db.updateInvoiceStatus(invoice.id, 'expired');
-          dispatchWebhookEvent('invoice.expired', {
-            id: invoice.id,
-            amount: invoice.amount,
-            currency: invoice.currency,
-            status: 'expired',
-          });
+          const changed = db.updateInvoiceStatus(invoice.id, 'expired', req.merchantId);
+          if (changed) {
+            emitWebhookEvent('invoice.expired', {
+              id: invoice.id,
+              amount: invoice.amount,
+              currency: invoice.currency,
+              status: 'expired',
+            }, req.merchantId);
+          }
         }
       } catch {
         // Node unreachable — return cached status
       }
+
+      const latest = db.getInvoice(invoice.id, req.merchantId);
+      if (
+        latest?.status === 'pending' &&
+        new Date(latest.expires_at).getTime() <= Date.now()
+      ) {
+        const changed = db.updateInvoiceStatus(invoice.id, 'expired', req.merchantId);
+        if (changed) {
+          emitWebhookEvent('invoice.expired', {
+            id: invoice.id,
+            paymentHash: invoice.payment_hash,
+            amount: invoice.amount,
+            currency: invoice.currency,
+            status: 'expired',
+          }, req.merchantId);
+        }
+      }
     }
 
-    const updated = db.getInvoice(req.params.id);
+    const updated = db.getInvoice(req.params.id, req.merchantId);
     res.json(toCamelCase(updated!));
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
@@ -177,7 +222,7 @@ router.get('/:id', async (req: AuthenticatedRequest, res: Response) => {
 
 router.post('/:id/cancel', async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const invoice = db.getInvoice(req.params.id);
+    const invoice = db.getInvoice(req.params.id, req.merchantId);
     if (!invoice) {
       res.status(404).json({ error: 'Invoice not found' });
       return;
@@ -187,13 +232,13 @@ router.post('/:id/cancel', async (req: AuthenticatedRequest, res: Response) => {
       return;
     }
 
-    db.updateInvoiceStatus(invoice.id, 'cancelled');
-    dispatchWebhookEvent('invoice.cancelled', {
+    db.updateInvoiceStatus(invoice.id, 'cancelled', req.merchantId);
+    emitWebhookEvent('invoice.cancelled', {
       id: invoice.id,
       status: 'cancelled',
-    });
+    }, req.merchantId);
 
-    res.json(toCamelCase(db.getInvoice(invoice.id)!));
+    res.json(toCamelCase(db.getInvoice(invoice.id, req.merchantId)!));
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     res.status(500).json({ error: message });
@@ -205,7 +250,7 @@ router.post('/:id/cancel', async (req: AuthenticatedRequest, res: Response) => {
 router.post('/:id/refund', async (req: AuthenticatedRequest, res: Response) => {
   try {
     const parsed = refundInvoiceSchema.parse(req.body);
-    const invoice = db.getInvoice(req.params.id);
+    const invoice = db.getInvoice(req.params.id, req.merchantId);
     if (!invoice) {
       res.status(404).json({ error: 'Invoice not found' });
       return;
@@ -223,7 +268,7 @@ router.post('/:id/refund', async (req: AuthenticatedRequest, res: Response) => {
     });
 
     if (refundResult.success) {
-      db.updateInvoiceStatus(invoice.id, 'refunded');
+      db.updateInvoiceStatus(invoice.id, 'refunded', req.merchantId);
       db.createTransaction({
         id: crypto.randomUUID(),
         paymentHash: refundResult.paymentHash,
@@ -236,19 +281,19 @@ router.post('/:id/refund', async (req: AuthenticatedRequest, res: Response) => {
         description: parsed.reason || 'Refund',
       });
 
-      dispatchWebhookEvent('invoice.refunded', {
+      emitWebhookEvent('invoice.refunded', {
         id: invoice.id,
         amount: invoice.amount,
         currency: invoice.currency,
         status: 'refunded',
         reason: parsed.reason,
-      });
+      }, req.merchantId);
     } else {
       res.status(500).json({ error: refundResult.error || 'Refund failed' });
       return;
     }
 
-    res.json(toCamelCase(db.getInvoice(invoice.id)!));
+    res.json(toCamelCase(db.getInvoice(invoice.id, req.merchantId)!));
   } catch (err: unknown) {
     if (err instanceof z.ZodError) {
       res.status(400).json({ error: 'Validation failed', details: err.issues });
@@ -263,7 +308,7 @@ router.post('/:id/refund', async (req: AuthenticatedRequest, res: Response) => {
 
 router.get('/:id/qr', (req: AuthenticatedRequest, res: Response) => {
   try {
-    const invoice = db.getInvoice(req.params.id);
+    const invoice = db.getInvoice(req.params.id, req.merchantId);
     if (!invoice) {
       res.status(404).json({ error: 'Invoice not found' });
       return;

@@ -11,16 +11,20 @@ export default function TransactionsPage({ client }: TransactionsPageProps) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'incoming' | 'outgoing'>('all');
+  const [error, setError] = useState('');
 
   const load = async () => {
     setLoading(true);
+    setError('');
     try {
       const result = await client.transactions.list({
         direction: filter === 'all' ? undefined : filter,
         limit: 50,
       });
       setTransactions(result.items);
-    } catch { /* ignore */ }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load transactions');
+    }
     finally { setLoading(false); }
   };
 
@@ -67,6 +71,14 @@ export default function TransactionsPage({ client }: TransactionsPageProps) {
             <span className="text-sm">Loading transactions...</span>
           </div>
         </div>
+      ) : error ? (
+        <div className="rounded-xl border border-red-200 bg-red-50 p-6">
+          <p className="text-sm font-medium text-red-700">Failed to load transactions</p>
+          <p className="mt-1 text-xs text-red-500">{error}</p>
+          <Button size="sm" variant="ghost" onClick={load} className="mt-3 text-red-700 hover:bg-red-100">
+            Try again
+          </Button>
+        </div>
       ) : transactions.length === 0 ? (
         <Card padding="lg">
           <div className="text-center py-8">
@@ -79,7 +91,8 @@ export default function TransactionsPage({ client }: TransactionsPageProps) {
         </Card>
       ) : (
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <table className="w-full">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[680px]">
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50/50">
                 <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Type</th>
@@ -129,6 +142,7 @@ export default function TransactionsPage({ client }: TransactionsPageProps) {
               ))}
             </tbody>
           </table>
+          </div>
           <div className="px-4 py-3 border-t border-gray-100 bg-gray-50/50 flex items-center justify-between">
             <span className="text-xs text-gray-400">
               Showing {transactions.length} transactions

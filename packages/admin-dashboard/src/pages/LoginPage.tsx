@@ -23,7 +23,7 @@ export default function LoginPage({ onLogin, baseUrl }: LoginPageProps) {
 
     setLoading(true);
     try {
-      const res = await fetch(`${baseUrl}/api/v1/health`, {
+      const res = await fetch(`${baseUrl}/api/v1/stats`, {
         headers: { Authorization: `Bearer ${key}` },
       });
       if (res.ok) {

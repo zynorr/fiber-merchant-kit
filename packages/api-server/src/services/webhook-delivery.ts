@@ -16,13 +16,14 @@ const BASE_DELAY_MS = 1000;
  */
 export async function dispatchWebhookEvent(
   event: string,
-  payload: Record<string, unknown>
+  payload: Record<string, unknown>,
+  options: { merchantId?: string; webhookId?: string } = {},
 ): Promise<void> {
-  const webhooks = listWebhooks();
+  const webhooks = listWebhooks(options.merchantId);
 
   const matching = webhooks.filter((wh) => {
     const events = (typeof wh.events === 'string' ? JSON.parse(wh.events as string) : wh.events) as string[];
-    return events.includes(event);
+    return events.includes(event) && (!options.webhookId || wh.id === options.webhookId);
   });
 
   for (const webhook of matching) {
@@ -36,8 +37,22 @@ export async function dispatchWebhookEvent(
     });
 
     // Fire-and-forget with retries
-    deliverWithRetry(deliveryId, webhook.url as string, webhook.secret as string, event, payload);
+    void deliverWithRetry(deliveryId, webhook.url as string, webhook.secret as string, event, payload)
+      .catch((err: unknown) => {
+        const message = err instanceof Error ? err.message : String(err);
+        updateDelivery(deliveryId, {
+          statusCode: 0,
+          success: false,
+          attempts: 1,
+          error: message,
+        });
+        console.error(`[Webhook] Unexpected delivery failure: ${message}`);
+      });
   }
+}
+
+function getRetryDelay(attempt: number): number {
+  return BASE_DELAY_MS * Math.pow(2, attempt - 1) + Math.random() * 1000;
 }
 
 /**
@@ -76,16 +91,44 @@ async function deliverWithRetry(
       signal: AbortSignal.timeout(10_000),
     });
 
+    if (response.status < 200 || response.status >= 300) {
+      updateDelivery(deliveryId, {
+        statusCode: response.status,
+        success: false,
+        attempts: attempt,
+        error: `HTTP ${response.status}`,
+      });
+
+      if (attempt < MAX_RETRIES) {
+        const delay = getRetryDelay(attempt);
+        console.warn(
+          `[Webhook] Delivery returned HTTP ${response.status} (attempt ${attempt}/${MAX_RETRIES}). Retrying in ${delay}ms...`,
+        );
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        return deliverWithRetry(deliveryId, url, secret, event, payload, attempt + 1);
+      }
+
+      console.error(`[Webhook] Delivery failed after ${MAX_RETRIES} attempts: HTTP ${response.status}`);
+      return;
+    }
+
     updateDelivery(deliveryId, {
       statusCode: response.status,
-      success: response.status >= 200 && response.status < 300,
+      success: true,
       attempts: attempt,
     });
   } catch (err: unknown) {
     const errorMessage = err instanceof Error ? err.message : String(err);
 
+    updateDelivery(deliveryId, {
+      statusCode: 0,
+      success: false,
+      attempts: attempt,
+      error: errorMessage,
+    });
+
     if (attempt < MAX_RETRIES) {
-      const delay = BASE_DELAY_MS * Math.pow(2, attempt - 1) + Math.random() * 1000;
+      const delay = getRetryDelay(attempt);
       console.warn(
         `[Webhook] Delivery failed (attempt ${attempt}/${MAX_RETRIES}): ${errorMessage}. Retrying in ${delay}ms...`
       );

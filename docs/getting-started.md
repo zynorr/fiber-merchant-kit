@@ -59,7 +59,7 @@ Open http://localhost:5174 to see a working e-commerce store.
 import { MerchantClient } from '@fiber-merchant/sdk';
 
 const client = new MerchantClient({
-  baseUrl: 'http://localhost:3001/api/v1',
+  baseUrl: 'http://localhost:3001',
   apiKey: process.env.FIBER_MERCHANT_API_KEY!,
 });
 
@@ -68,7 +68,6 @@ const invoice = await client.invoices.create({
   amount: '50000',
   currency: 'CKB',
   description: 'API access token - 1 month',
-  webhookUrl: 'https://myapp.com/webhooks/fiber-paid',
 });
 
 // Render QR or deep link
@@ -81,7 +80,7 @@ console.log(`Pay here: ${invoice.invoiceAddress}`);
 from fiber_merchant import MerchantClient
 
 client = MerchantClient(
-    base_url="http://localhost:3001/api/v1",
+    base_url="http://localhost:3001",
     api_key="fm_sk_..."
 )
 

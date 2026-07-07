@@ -22,6 +22,37 @@ import type {
 
 let db: DbWrapper;
 
+type CursorRow = { id: string; created_at: string };
+
+function encodeCursor(row: CursorRow): string {
+  return Buffer.from(JSON.stringify({ id: row.id, createdAt: row.created_at })).toString('base64url');
+}
+
+function parseCursor(cursor?: string): { id: string; createdAt: string } | undefined {
+  if (!cursor) return undefined;
+  try {
+    const parsed = JSON.parse(Buffer.from(cursor, 'base64url').toString('utf8')) as {
+      id?: unknown;
+      createdAt?: unknown;
+    };
+    if (typeof parsed.id === 'string' && typeof parsed.createdAt === 'string') {
+      return { id: parsed.id, createdAt: parsed.createdAt };
+    }
+  } catch {
+    // Older clients used the row id as a cursor. Callers can fall back to that below.
+  }
+  return undefined;
+}
+
+function parseMetadata<T extends { metadata?: unknown }>(row: T): T {
+  if (row && typeof row.metadata === 'string') {
+    try {
+      (row as Record<string, unknown>).metadata = JSON.parse(row.metadata);
+    } catch { /* ignore malformed legacy metadata */ }
+  }
+  return row;
+}
+
 /** Initialise the database (must be called once before any query) */
 export async function initDatabase(): Promise<void> {
   const dbPath = process.env.FIBER_MERCHANT_DB_PATH || path.join(process.cwd(), 'data', 'merchant.db');
@@ -97,15 +128,12 @@ export function createInvoice(data: {
   return getInvoice(data.id)!;
 }
 
-export function getInvoice(id: string): DbInvoice | undefined {
+export function getInvoice(id: string, merchantId?: string): DbInvoice | undefined {
   const d = getDb();
-  const row = d.prepare('SELECT * FROM invoices WHERE id = ?').get<DbInvoice>(id);
-  if (row && typeof row.metadata === 'string') {
-    try {
-      (row as unknown as Record<string, unknown>).metadata = JSON.parse(row.metadata);
-    } catch { /* ignore */ }
-  }
-  return row;
+  const row = merchantId
+    ? d.prepare('SELECT * FROM invoices WHERE id = ? AND merchant_id = ?').get<DbInvoice>(id, merchantId)
+    : d.prepare('SELECT * FROM invoices WHERE id = ?').get<DbInvoice>(id);
+  return row ? parseMetadata(row) : undefined;
 }
 
 export function getInvoiceByPaymentHash(paymentHash: string): DbInvoice | undefined {
@@ -131,34 +159,38 @@ export function listInvoices(params: {
   const total = d.prepare(`SELECT COUNT(*) as count FROM invoices ${where}`).get<{ count: number }>(...binds)!.count;
 
   if (params.cursor) {
-    whereConditions.push('id < ?');
-    binds.push(params.cursor);
+    const parsedCursor = parseCursor(params.cursor);
+    if (parsedCursor) {
+      whereConditions.push('(created_at < ? OR (created_at = ? AND id < ?))');
+      binds.push(parsedCursor.createdAt, parsedCursor.createdAt, parsedCursor.id);
+    } else {
+      whereConditions.push('id < ?');
+      binds.push(params.cursor);
+    }
   }
 
   const cursorWhere = whereConditions.length > 0 ? 'WHERE ' + whereConditions.join(' AND ') : '';
   const rows = d.prepare(
-    `SELECT * FROM invoices ${cursorWhere} ORDER BY created_at DESC LIMIT ?`,
+    `SELECT * FROM invoices ${cursorWhere} ORDER BY created_at DESC, id DESC LIMIT ?`,
   ).all<DbInvoice>(...binds, limit);
 
-  for (const row of rows) {
-    if (typeof row.metadata === 'string') {
-      try {
-        (row as unknown as Record<string, unknown>).metadata = JSON.parse(row.metadata);
-      } catch { /* ignore */ }
-    }
-  }
+  rows.forEach(parseMetadata);
 
-  const cursor = rows.length === limit ? (rows[rows.length - 1].id as string) : undefined;
+  const cursor = rows.length === limit ? encodeCursor(rows[rows.length - 1]) : undefined;
   return { items: rows, total, cursor };
 }
 
-export function updateInvoiceStatus(id: string, status: string): void {
+export function updateInvoiceStatus(id: string, status: string, merchantId?: string): boolean {
   const d = getDb();
   const updates: string[] = ['status = ?', 'updated_at = datetime("now")'];
-  const binds: unknown[] = [status];
-  if (status === 'paid') updates.push('paid_at = datetime("now")');
-  if (status === 'refunded') updates.push('refunded_at = datetime("now")');
-  d.prepare(`UPDATE invoices SET ${updates.join(', ')} WHERE id = ?`).run(...binds, id);
+  if (status === 'paid') updates.push('paid_at = COALESCE(paid_at, datetime("now"))');
+  if (status === 'refunded') updates.push('refunded_at = COALESCE(refunded_at, datetime("now"))');
+  const binds: unknown[] = [status, id, status];
+  if (merchantId) binds.push(merchantId);
+  const result = d.prepare(
+    `UPDATE invoices SET ${updates.join(', ')} WHERE id = ? AND status != ?${merchantId ? ' AND merchant_id = ?' : ''}`,
+  ).run(...binds);
+  return result.changes > 0;
 }
 
 // ── Webhook queries ───────────────────────────────────────────
@@ -179,9 +211,11 @@ export function createWebhook(data: {
   return getWebhook(data.id)!;
 }
 
-export function getWebhook(id: string): DbWebhook | undefined {
+export function getWebhook(id: string, merchantId?: string): DbWebhook | undefined {
   const d = getDb();
-  const row = d.prepare('SELECT * FROM webhooks WHERE id = ?').get<DbWebhook>(id);
+  const row = merchantId
+    ? d.prepare('SELECT * FROM webhooks WHERE id = ? AND merchant_id = ?').get<DbWebhook>(id, merchantId)
+    : d.prepare('SELECT * FROM webhooks WHERE id = ?').get<DbWebhook>(id);
   if (row && typeof row.events === 'string') {
     try { (row as unknown as Record<string, unknown>).events = JSON.parse(row.events); } catch { /* ignore */ }
   }
@@ -201,7 +235,11 @@ export function listWebhooks(merchantId?: string): DbWebhook[] {
   });
 }
 
-export function updateWebhook(id: string, data: Partial<{ url: string; events: string[]; description: string; active: boolean }>): DbWebhook | undefined {
+export function updateWebhook(
+  id: string,
+  data: Partial<{ url: string; events: string[]; description: string; active: boolean }>,
+  merchantId?: string,
+): DbWebhook | undefined {
   const d = getDb();
   const sets: string[] = [];
   const binds: unknown[] = [];
@@ -211,13 +249,19 @@ export function updateWebhook(id: string, data: Partial<{ url: string; events: s
   if (data.active !== undefined) { sets.push('active = ?'); binds.push(data.active ? 1 : 0); }
   if (sets.length > 0) {
     binds.push(id);
-    d.prepare(`UPDATE webhooks SET ${sets.join(', ')} WHERE id = ?`).run(...binds);
+    if (merchantId) binds.push(merchantId);
+    d.prepare(
+      `UPDATE webhooks SET ${sets.join(', ')} WHERE id = ?${merchantId ? ' AND merchant_id = ?' : ''}`,
+    ).run(...binds);
   }
-  return getWebhook(id);
+  return getWebhook(id, merchantId);
 }
 
-export function deleteWebhook(id: string): void {
-  getDb().prepare('DELETE FROM webhooks WHERE id = ?').run(id);
+export function deleteWebhook(id: string, merchantId?: string): boolean {
+  const result = merchantId
+    ? getDb().prepare('DELETE FROM webhooks WHERE id = ? AND merchant_id = ?').run(id, merchantId)
+    : getDb().prepare('DELETE FROM webhooks WHERE id = ?').run(id);
+  return result.changes > 0;
 }
 
 // ── Webhook delivery queries ──────────────────────────────────
@@ -241,7 +285,18 @@ export function updateDelivery(id: string, data: { statusCode: number; success: 
   `).run(data.statusCode, data.success ? 1 : 0, data.attempts || 1, data.error || null, id);
 }
 
-export function getDeliveries(webhookId: string): DbWebhookDelivery[] {
+export function getDeliveries(webhookId: string, merchantId?: string): DbWebhookDelivery[] {
+  if (merchantId) {
+    return getDb().prepare(`
+      SELECT d.*
+      FROM webhook_deliveries d
+      JOIN webhooks w ON w.id = d.webhook_id
+      WHERE d.webhook_id = ? AND w.merchant_id = ?
+      ORDER BY d.delivered_at DESC
+      LIMIT 50
+    `).all<DbWebhookDelivery>(webhookId, merchantId);
+  }
+
   return getDb().prepare(
     'SELECT * FROM webhook_deliveries WHERE webhook_id = ? ORDER BY delivered_at DESC LIMIT 50',
   ).all<DbWebhookDelivery>(webhookId);
@@ -275,6 +330,58 @@ export function createTransaction(data: {
   return d.prepare('SELECT * FROM transactions WHERE id = ?').get<DbTransaction>(data.id)!;
 }
 
+export function upsertIncomingPaymentTransaction(data: {
+  paymentHash: string;
+  invoiceId: string;
+  amount: string;
+  currency: string;
+  description?: string | null;
+  metadata?: Record<string, string> | string | null;
+}): DbTransaction {
+  const d = getDb();
+  const existingSucceeded = d.prepare(`
+    SELECT * FROM transactions
+    WHERE invoice_id = ? AND direction = 'incoming' AND status = 'Succeeded'
+    ORDER BY created_at DESC, id DESC
+    LIMIT 1
+  `).get<DbTransaction>(data.invoiceId);
+  if (existingSucceeded) return parseMetadata(existingSucceeded);
+
+  const pending = d.prepare(`
+    SELECT * FROM transactions
+    WHERE invoice_id = ? AND direction = 'incoming' AND status = 'Pending'
+    ORDER BY created_at DESC, id DESC
+    LIMIT 1
+  `).get<DbTransaction>(data.invoiceId);
+
+  const metadata = typeof data.metadata === 'string'
+    ? data.metadata
+    : data.metadata
+      ? JSON.stringify(data.metadata)
+      : null;
+
+  if (pending) {
+    d.prepare(`
+      UPDATE transactions
+      SET payment_hash = ?, amount = ?, currency = ?, status = 'Succeeded', description = COALESCE(?, description), metadata = COALESCE(?, metadata)
+      WHERE id = ?
+    `).run(data.paymentHash, data.amount, data.currency, data.description || null, metadata, pending.id);
+    return parseMetadata(d.prepare('SELECT * FROM transactions WHERE id = ?').get<DbTransaction>(pending.id)!);
+  }
+
+  return createTransaction({
+    id: crypto.randomUUID(),
+    paymentHash: data.paymentHash,
+    invoiceId: data.invoiceId,
+    direction: 'incoming',
+    amount: data.amount,
+    currency: data.currency,
+    status: 'Succeeded',
+    description: data.description || undefined,
+    metadata: typeof data.metadata === 'string' ? undefined : data.metadata || undefined,
+  });
+}
+
 export function listTransactions(params: {
   status?: string;
   direction?: string;
@@ -298,21 +405,40 @@ export function listTransactions(params: {
   const total = d.prepare(`SELECT COUNT(*) as count FROM transactions ${where}`).get<{ count: number }>(...binds)!.count;
 
   if (params.cursor) {
-    whereConditions.push('id < ?');
-    binds.push(params.cursor);
+    const parsedCursor = parseCursor(params.cursor);
+    if (parsedCursor) {
+      whereConditions.push('(created_at < ? OR (created_at = ? AND id < ?))');
+      binds.push(parsedCursor.createdAt, parsedCursor.createdAt, parsedCursor.id);
+    } else {
+      whereConditions.push('id < ?');
+      binds.push(params.cursor);
+    }
   }
 
   const cursorWhere = whereConditions.length > 0 ? 'WHERE ' + whereConditions.join(' AND ') : '';
   const rows = d.prepare(
-    `SELECT * FROM transactions ${cursorWhere} ORDER BY created_at DESC LIMIT ?`,
+    `SELECT * FROM transactions ${cursorWhere} ORDER BY created_at DESC, id DESC LIMIT ?`,
   ).all<DbTransaction>(...binds, limit);
 
-  const cursor = rows.length === limit ? (rows[rows.length - 1].id as string) : undefined;
+  rows.forEach(parseMetadata);
+
+  const cursor = rows.length === limit ? encodeCursor(rows[rows.length - 1]) : undefined;
   return { items: rows, total, cursor };
 }
 
-export function getTransaction(id: string): DbTransaction | undefined {
-  return getDb().prepare('SELECT * FROM transactions WHERE id = ?').get<DbTransaction>(id);
+export function getTransaction(id: string, merchantId?: string): DbTransaction | undefined {
+  if (merchantId) {
+    const row = getDb().prepare(`
+      SELECT t.*
+      FROM transactions t
+      JOIN invoices i ON i.id = t.invoice_id
+      WHERE t.id = ? AND i.merchant_id = ?
+    `).get<DbTransaction>(id, merchantId);
+    return row ? parseMetadata(row) : undefined;
+  }
+
+  const row = getDb().prepare('SELECT * FROM transactions WHERE id = ?').get<DbTransaction>(id);
+  return row ? parseMetadata(row) : undefined;
 }
 
 // ── Stats queries ─────────────────────────────────────────────

@@ -6,7 +6,7 @@
  * For multi-server setups, swap in an external store (Redis, etc.).
  */
 
-import rateLimit from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import type { Request } from 'express';
 
 const DEFAULT_WINDOW_MS = 60 * 1000; // 1 minute
@@ -28,8 +28,7 @@ export function createApiLimiter() {
       if (authHeader && authHeader.startsWith('Bearer ')) {
         return authHeader.slice(7).trim();
       }
-      // Normalize IPv6 loopback to IPv4 for consistent keying
-      return (req.ip || 'unknown').replace(/^::ffff:/, '');
+      return ipKeyGenerator(req.ip || 'unknown');
     },
     handler: (_req, res) => {
       res.status(429).json({

@@ -20,7 +20,9 @@ from fiber_merchant.client import (
     Invoice,
     MerchantStats,
     Transaction,
+    WebhookDelivery,
     WebhookEndpoint,
+    verify_webhook_signature,
 )
 
 
@@ -64,7 +66,7 @@ class TestMerchantClientConstructor:
             )
             mock_httpx_cls.assert_called_once()
             args, kwargs = mock_httpx_cls.call_args
-            assert kwargs["base_url"] == "http://localhost:3001"
+            assert kwargs["base_url"] == "http://localhost:3001/api/v1"
 
     def test_strips_trailing_slash_from_base_url(self):
         with patch("fiber_merchant.client.httpx.Client"):
@@ -72,7 +74,16 @@ class TestMerchantClientConstructor:
                 base_url="http://localhost:3001/",
                 api_key="fm_sk_key",
             )
-            assert client.base_url == "http://localhost:3001"
+            assert client.base_url == "http://localhost:3001/api/v1"
+
+    def test_does_not_duplicate_api_version_in_base_url(self):
+        with patch("fiber_merchant.client.httpx.Client") as mock_httpx_cls:
+            MerchantClient(
+                base_url="http://localhost:3001/api/v1",
+                api_key="fm_sk_key",
+            )
+            _, kwargs = mock_httpx_cls.call_args
+            assert kwargs["base_url"] == "http://localhost:3001/api/v1"
 
     def test_sets_authorization_header(self):
         with patch("fiber_merchant.client.httpx.Client") as mock_httpx_cls:
@@ -137,6 +148,30 @@ class TestInvoiceFromDict:
         inv = Invoice.from_dict(data)
         assert not hasattr(inv, "unknown_field")
 
+    def test_from_dict_accepts_camel_case_api_fields(self):
+        data = {
+            "id": "inv-123",
+            "paymentHash": "0xabc",
+            "invoiceAddress": "fibt1...",
+            "amount": "5000",
+            "currency": "CKB",
+            "createdAt": "2026-07-04T12:00:00Z",
+        }
+        inv = Invoice.from_dict(data)
+        assert inv.payment_hash == "0xabc"
+        assert inv.invoice_address == "fibt1..."
+        assert inv.created_at == "2026-07-04T12:00:00Z"
+
+
+class TestWebhookSignature:
+    def test_verify_webhook_signature(self):
+        payload = '{"id":"evt_1"}'
+        secret = "whsec_test"
+        signature = "030fa3b2413d1993c551364bd53bb9b3edb5c0c34d55dba6ada6041245632811"
+
+        assert verify_webhook_signature(payload, signature, secret)
+        assert not verify_webhook_signature(payload, "bad-signature", secret)
+
 
 # ── Health ─────────────────────────────────────────────────────
 
@@ -194,11 +229,15 @@ class TestInvoices:
             description="Optional fields test",
             metadata={"order_id": "ORD-001"},
             expiry=3600,
+            webhook_url="https://example.com/invoice-hook",
+            allow_mpp=True,
         )
 
         _, kwargs = mock_httpx.post.call_args
         assert kwargs["json"]["metadata"] == {"order_id": "ORD-001"}
         assert kwargs["json"]["expiry"] == 3600
+        assert kwargs["json"]["webhookUrl"] == "https://example.com/invoice-hook"
+        assert kwargs["json"]["allowMpp"] is True
 
     def test_get_returns_invoice(self, mock_client, mock_response):
         client, mock_httpx = mock_client
@@ -226,9 +265,9 @@ class TestInvoices:
             "total": 2,
         })
 
-        invoices = client.invoices.list(status="paid", limit=10)
+        invoices = client.invoices.list(status="paid", limit=10, cursor="next")
 
-        mock_httpx.get.assert_called_once_with("/invoices", params={"status": "paid", "limit": 10})
+        mock_httpx.get.assert_called_once_with("/invoices", params={"limit": 10, "status": "paid", "cursor": "next"})
         assert len(invoices) == 2
         assert invoices[0].id == "inv-1"
         assert invoices[1].status == "pending"
@@ -346,6 +385,39 @@ class TestWebhooks:
         assert len(webhooks) == 2
         assert webhooks[0].id == "wh-1"
 
+    def test_get_returns_webhook(self, mock_client, mock_response):
+        client, mock_httpx = mock_client
+        mock_httpx.get.return_value = mock_response({
+            "id": "wh-123",
+            "url": "https://example.com/hook",
+            "events": ["invoice.paid"],
+            "secret": "whsec_abc",
+            "active": True,
+        })
+
+        webhook = client.webhooks.get("wh-123")
+
+        mock_httpx.get.assert_called_once_with("/webhooks/wh-123")
+        assert webhook.id == "wh-123"
+
+    def test_update_returns_webhook(self, mock_client, mock_response):
+        client, mock_httpx = mock_client
+        mock_httpx.patch.return_value = mock_response({
+            "id": "wh-123",
+            "url": "https://example.com/hook",
+            "events": ["invoice.paid"],
+            "secret": "whsec_abc",
+            "active": False,
+        })
+
+        webhook = client.webhooks.update("wh-123", active=False, description="Paused")
+
+        mock_httpx.patch.assert_called_once_with(
+            "/webhooks/wh-123",
+            json={"description": "Paused", "active": False},
+        )
+        assert webhook.active is False
+
     def test_delete_calls_delete(self, mock_client, mock_response):
         client, mock_httpx = mock_client
         mock_httpx.delete.return_value = mock_response(None, status=204)
@@ -354,13 +426,37 @@ class TestWebhooks:
 
         mock_httpx.delete.assert_called_once_with("/webhooks/wh-123")
 
+    def test_get_deliveries_returns_delivery_logs(self, mock_client, mock_response):
+        client, mock_httpx = mock_client
+        mock_httpx.get.return_value = mock_response([
+            {
+                "id": "del-1",
+                "webhookId": "wh-123",
+                "event": "invoice.paid",
+                "url": "https://example.com/hook",
+                "status": 200,
+                "success": True,
+                "attempts": 1,
+                "payload": {"id": "inv-1"},
+                "deliveredAt": "2026-07-04T12:00:00Z",
+            },
+        ])
+
+        deliveries = client.webhooks.get_deliveries("wh-123")
+
+        mock_httpx.get.assert_called_once_with("/webhooks/wh-123/deliveries")
+        assert isinstance(deliveries[0], WebhookDelivery)
+        assert deliveries[0].webhook_id == "wh-123"
+        assert deliveries[0].success is True
+
     def test_test_calls_post(self, mock_client, mock_response):
         client, mock_httpx = mock_client
-        mock_httpx.post.return_value = mock_response(None, status=200)
+        mock_httpx.post.return_value = mock_response({"message": "Test event sent", "webhookId": "wh-123"}, status=200)
 
-        client.webhooks.test("wh-123")
+        result = client.webhooks.test("wh-123")
 
         mock_httpx.post.assert_called_once_with("/webhooks/wh-123/test")
+        assert result["webhookId"] == "wh-123"
 
 
 # ── Transactions ───────────────────────────────────────────────
@@ -376,11 +472,11 @@ class TestTransactions:
             "total": 2,
         })
 
-        txs = client.transactions.list(direction="incoming", status="Succeeded")
+        txs = client.transactions.list(direction="incoming", status="Succeeded", cursor="next")
 
         mock_httpx.get.assert_called_once_with(
             "/transactions",
-            params={"direction": "incoming", "status": "Succeeded", "limit": 50},
+            params={"limit": 50, "direction": "incoming", "status": "Succeeded", "cursor": "next"},
         )
         assert len(txs) == 2
         assert txs[0].id == "tx-1"
@@ -395,6 +491,25 @@ class TestTransactions:
             "/transactions",
             params={"limit": 50},
         )
+
+    def test_get_returns_transaction(self, mock_client, mock_response):
+        client, mock_httpx = mock_client
+        mock_httpx.get.return_value = mock_response({
+            "id": "tx-1",
+            "paymentHash": "0xa",
+            "invoiceId": "inv-1",
+            "direction": "incoming",
+            "amount": "100",
+            "currency": "CKB",
+            "fee": "0",
+            "status": "Succeeded",
+        })
+
+        tx = client.transactions.get("tx-1")
+
+        mock_httpx.get.assert_called_once_with("/transactions/tx-1")
+        assert tx.invoice_id == "inv-1"
+        assert tx.status == "Succeeded"
 
 
 # ── Balance ────────────────────────────────────────────────────
@@ -433,12 +548,12 @@ class TestStats:
     def test_get_returns_stats(self, mock_client, mock_response):
         client, mock_httpx = mock_client
         mock_httpx.get.return_value = mock_response({
-            "total_invoices": 100,
-            "paid_invoices": 75,
-            "total_volume": "500000",
-            "success_rate": 75.0,
-            "active_channels": 2,
-            "channel_balances": {"local": "500000", "remote": "500000"},
+            "totalInvoices": 100,
+            "paidInvoices": 75,
+            "totalVolume": "500000",
+            "successRate": 75.0,
+            "activeChannels": 2,
+            "channelBalances": {"local": "500000", "remote": "500000"},
         })
 
         stats = client.stats.get()

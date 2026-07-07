@@ -64,9 +64,9 @@ interface CartItem {
 
 type Step = 'cart' | 'payment' | 'confirming' | 'success' | 'error';
 
-// API key resolution: env var > localStorage (set by dashboard)
-const API_KEY =
-  import.meta.env.VITE_MERCHANT_API_KEY || localStorage.getItem('fm_api_key') || '';
+function getConfiguredApiKey() {
+  return import.meta.env.VITE_MERCHANT_API_KEY || localStorage.getItem('fm_api_key') || '';
+}
 
 export default function App() {
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -75,6 +75,7 @@ export default function App() {
   const [invoiceId, setInvoiceId] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [checkingStatus, setCheckingStatus] = useState(false);
+  const [apiKey, setApiKey] = useState(getConfiguredApiKey);
 
   const addToCart = (product: typeof PRODUCTS[0]) => {
     setCart((prev) => {
@@ -109,7 +110,10 @@ export default function App() {
   const totalAmountCkb = (totalAmount / 1e8).toFixed(6);
 
   const handleCheckout = async () => {
-    if (!API_KEY) {
+    const key = getConfiguredApiKey();
+    setApiKey(key);
+
+    if (!key) {
       setErrorMsg('Set VITE_MERCHANT_API_KEY in packages/demo-store/.env to enable checkout');
       return;
     }
@@ -122,7 +126,7 @@ export default function App() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${API_KEY}`,
+          Authorization: `Bearer ${key}`,
         },
         body: JSON.stringify({
           amount: String(totalAmount),
@@ -146,14 +150,14 @@ export default function App() {
       setInvoiceId(invoice.id);
       setInvoiceUrl(invoice.invoiceAddress);
       setStep('confirming');
-      pollPaymentStatus(invoice.id);
+      pollPaymentStatus(invoice.id, key);
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : 'Payment failed');
       setStep('error');
     }
   };
 
-  const pollPaymentStatus = async (id: string) => {
+  const pollPaymentStatus = async (id: string, key: string) => {
     setCheckingStatus(true);
     let attempts = 0;
     const maxAttempts = 30;
@@ -161,9 +165,9 @@ export default function App() {
     const check = async () => {
       try {
         const res = await fetch(`/api/v1/invoices/${id}`, {
-          headers: { Authorization: `Bearer ${API_KEY}` },
+          headers: { Authorization: `Bearer ${key}` },
         });
-        if (!res.ok) return;
+        if (!res.ok) throw new Error('Unable to refresh invoice status');
         const invoice = await res.json();
 
         if (invoice.status === 'paid') {
@@ -180,11 +184,19 @@ export default function App() {
         }
         attempts++;
         if (attempts < maxAttempts) setTimeout(check, 2000);
-        else setCheckingStatus(false);
+        else {
+          setErrorMsg('Payment was not confirmed before the polling window ended');
+          setStep('error');
+          setCheckingStatus(false);
+        }
       } catch {
         attempts++;
         if (attempts < maxAttempts) setTimeout(check, 2000);
-        else setCheckingStatus(false);
+        else {
+          setErrorMsg('Unable to confirm payment status');
+          setStep('error');
+          setCheckingStatus(false);
+        }
       }
     };
     setTimeout(check, 2000);
@@ -219,7 +231,7 @@ export default function App() {
 
       <main className="max-w-6xl mx-auto px-4 py-8">
         {/* Setup banner */}
-        {!API_KEY && (
+        {!apiKey && (
           <div className="mb-6 bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center gap-3">
             <Terminal className="h-5 w-5 text-amber-600 flex-shrink-0" />
             <div>

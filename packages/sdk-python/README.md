@@ -14,7 +14,7 @@ pip install fiber-merchant
 from fiber_merchant import MerchantClient
 
 client = MerchantClient(
-    base_url="http://localhost:3001/api/v1",
+    base_url="http://localhost:3001",
     api_key="fm_sk_YOUR_API_KEY"
 )
 
@@ -37,16 +37,13 @@ client.close()
 ## Webhook Verification
 
 ```python
-import hmac
-import hashlib
+from fiber_merchant import verify_webhook_signature
 
-def verify_webhook(payload: bytes, signature: str, secret: str) -> bool:
-    expected = hmac.new(
-        secret.encode(),
-        payload,
-        hashlib.sha256
-    ).hexdigest()
-    return hmac.compare_digest(expected, signature)
+is_valid = verify_webhook_signature(
+    payload=request.body,
+    signature=request.headers["X-Fiber-Signature"],
+    secret="whsec_..."
+)
 ```
 
 ## License

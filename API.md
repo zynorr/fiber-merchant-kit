@@ -11,7 +11,7 @@ Authentication: `Authorization: Bearer fm_sk_...`
 
 | Method | Endpoint | Description |
 |---|---|---|
-| `POST` | `/invoices` | Create invoice -- `{ amount, currency?, description?, metadata?, expiry?, webhookUrl? }` |
+| `POST` | `/invoices` | Create invoice -- `{ amount, currency?, description?, metadata?, expiry? }` |
 | `GET` | `/invoices` | List invoices -- `?status=paid&limit=50&cursor=...` |
 | `GET` | `/invoices/:id` | Get invoice + auto-poll for payment status |
 | `POST` | `/invoices/:id/cancel` | Cancel pending invoice |

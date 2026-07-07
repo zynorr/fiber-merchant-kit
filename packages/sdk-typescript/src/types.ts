@@ -108,6 +108,12 @@ export interface WebhookDelivery {
   deliveredAt: string;
 }
 
+/** Response returned after queueing a webhook test event */
+export interface WebhookTestResponse {
+  message: string;
+  webhookId: string;
+}
+
 /** Transaction record */
 export interface Transaction {
   id: string;

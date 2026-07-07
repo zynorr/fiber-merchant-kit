@@ -16,6 +16,9 @@ export default function InvoiceDetailPage({ client }: InvoiceDetailPageProps) {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [pendingAction, setPendingAction] = useState<'cancel' | 'refund' | null>(null);
+  const [actionError, setActionError] = useState('');
+  const [notice, setNotice] = useState('');
 
   const loadInvoice = async () => {
     if (!id) return;
@@ -37,26 +40,32 @@ export default function InvoiceDetailPage({ client }: InvoiceDetailPageProps) {
   useEffect(() => { loadInvoice(); }, [id]);
 
   const handleCancel = async () => {
-    if (!id || !confirm('Cancel this invoice?')) return;
+    if (!id) return;
     setActionLoading(true);
+    setActionError('');
     try {
       await client.invoices.cancel(id);
+      setNotice('Invoice cancelled');
+      setPendingAction(null);
       loadInvoice();
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to cancel');
+      setActionError(err instanceof Error ? err.message : 'Failed to cancel');
     } finally {
       setActionLoading(false);
     }
   };
 
   const handleRefund = async () => {
-    if (!id || !confirm('Issue a refund for this payment?')) return;
+    if (!id) return;
     setActionLoading(true);
+    setActionError('');
     try {
       await client.invoices.refund(id);
+      setNotice('Refund issued');
+      setPendingAction(null);
       loadInvoice();
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to refund');
+      setActionError(err instanceof Error ? err.message : 'Failed to refund');
     } finally {
       setActionLoading(false);
     }
@@ -109,6 +118,12 @@ export default function InvoiceDetailPage({ client }: InvoiceDetailPageProps) {
         Back to Invoices
       </button>
 
+      {notice && (
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+          {notice}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Details */}
         <div className="lg:col-span-2 space-y-6">
@@ -154,8 +169,7 @@ export default function InvoiceDetailPage({ client }: InvoiceDetailPageProps) {
             <div className="flex gap-3">
               <Button
                 variant="danger"
-                onClick={handleCancel}
-                loading={actionLoading}
+                onClick={() => setPendingAction('cancel')}
                 icon={<Ban className="h-4 w-4" />}
               >
                 Cancel Invoice
@@ -166,13 +180,48 @@ export default function InvoiceDetailPage({ client }: InvoiceDetailPageProps) {
             <div className="flex gap-3">
               <Button
                 variant="outline"
-                onClick={handleRefund}
-                loading={actionLoading}
+                onClick={() => setPendingAction('refund')}
                 icon={<RotateCcw className="h-4 w-4" />}
                 className="text-purple-600 border-purple-300 hover:bg-purple-50"
               >
                 Issue Refund
               </Button>
+            </div>
+          )}
+
+          {pendingAction && (
+            <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+              <p className="text-sm font-medium text-gray-800">
+                {pendingAction === 'cancel'
+                  ? 'Cancel this pending invoice?'
+                  : 'Issue a refund for this paid invoice?'}
+              </p>
+              {actionError && (
+                <p className="mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                  {actionError}
+                </p>
+              )}
+              <div className="mt-3 flex gap-2">
+                <Button
+                  size="sm"
+                  variant={pendingAction === 'cancel' ? 'danger' : 'outline'}
+                  loading={actionLoading}
+                  onClick={pendingAction === 'cancel' ? handleCancel : handleRefund}
+                >
+                  Confirm
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  disabled={actionLoading}
+                  onClick={() => {
+                    setPendingAction(null);
+                    setActionError('');
+                  }}
+                >
+                  Keep Invoice
+                </Button>
+              </div>
             </div>
           )}
         </div>

@@ -18,6 +18,7 @@ const mockDb = vi.hoisted(() => ({
   listInvoices: vi.fn(),
   updateInvoiceStatus: vi.fn(),
   createTransaction: vi.fn(),
+  upsertIncomingPaymentTransaction: vi.fn(),
   createWebhook: vi.fn(),
   getWebhook: vi.fn(),
   listWebhooks: vi.fn(),
@@ -271,7 +272,8 @@ describe('API Routes', () => {
       it('auto-polls and updates status when invoice becomes paid', async () => {
         mockDb.getInvoice
           .mockReturnValueOnce(mockInvoice)
-          .mockReturnValueOnce({ ...mockInvoice, status: 'paid', paid_at: '2026-07-04T12:05:00Z' });
+          .mockReturnValue({ ...mockInvoice, status: 'paid', paid_at: '2026-07-04T12:05:00Z' });
+        mockDb.updateInvoiceStatus.mockReturnValue(true);
         mockFiberClient.getInvoiceStatus.mockResolvedValue({ status: 'Paid' });
 
         const res = await request(app)
@@ -280,8 +282,10 @@ describe('API Routes', () => {
 
         expect(res.status).toBe(200);
         expect(res.body.status).toBe('paid');
-        expect(mockDb.updateInvoiceStatus).toHaveBeenCalledWith('inv-123', 'paid');
-        expect(mockDb.createTransaction).toHaveBeenCalled();
+        expect(mockDb.updateInvoiceStatus).toHaveBeenCalledWith('inv-123', 'paid', 'merchant-1');
+        expect(mockDb.upsertIncomingPaymentTransaction).toHaveBeenCalledWith(
+          expect.objectContaining({ invoiceId: 'inv-123', paymentHash: '0xabc' }),
+        );
       });
     });
 
@@ -294,7 +298,7 @@ describe('API Routes', () => {
           .set('Authorization', `Bearer ${API_KEY}`);
 
         expect(res.status).toBe(200);
-        expect(mockDb.updateInvoiceStatus).toHaveBeenCalledWith('inv-123', 'cancelled');
+        expect(mockDb.updateInvoiceStatus).toHaveBeenCalledWith('inv-123', 'cancelled', 'merchant-1');
       });
 
       it('returns 400 for non-pending invoice', async () => {
@@ -324,7 +328,7 @@ describe('API Routes', () => {
           .send({ reason: 'Customer request' });
 
         expect(res.status).toBe(200);
-        expect(mockDb.updateInvoiceStatus).toHaveBeenCalledWith('inv-123', 'refunded');
+        expect(mockDb.updateInvoiceStatus).toHaveBeenCalledWith('inv-123', 'refunded', 'merchant-1');
       });
 
       it('returns 400 for non-paid invoice', async () => {
@@ -459,17 +463,30 @@ describe('API Routes', () => {
 
     describe('DELETE /api/v1/webhooks/:id', () => {
       it('deletes a webhook', async () => {
+        mockDb.deleteWebhook.mockReturnValue(true);
+
         const res = await request(app)
           .delete('/api/v1/webhooks/wh-123')
           .set('Authorization', `Bearer ${API_KEY}`);
 
         expect(res.status).toBe(204);
-        expect(mockDb.deleteWebhook).toHaveBeenCalledWith('wh-123');
+        expect(mockDb.deleteWebhook).toHaveBeenCalledWith('wh-123', 'merchant-1');
+      });
+
+      it('returns 404 when deleting an unknown webhook', async () => {
+        mockDb.deleteWebhook.mockReturnValue(false);
+
+        const res = await request(app)
+          .delete('/api/v1/webhooks/missing')
+          .set('Authorization', `Bearer ${API_KEY}`);
+
+        expect(res.status).toBe(404);
       });
     });
 
     describe('GET /api/v1/webhooks/:id/deliveries', () => {
       it('returns delivery logs', async () => {
+        mockDb.getWebhook.mockReturnValue(mockWebhook);
         mockDb.getDeliveries.mockReturnValue([
           { id: 'del-1', webhook_id: 'wh-123', event: 'invoice.paid', url: 'https://example.com', status_code: 200, success: 1, attempts: 1, payload: '{}', error: null, delivered_at: '2026-07-04T12:00:00Z' },
         ]);
@@ -480,6 +497,9 @@ describe('API Routes', () => {
 
         expect(res.status).toBe(200);
         expect(res.body).toHaveLength(1);
+        expect(res.body[0].status).toBe(200);
+        expect(res.body[0].success).toBe(true);
+        expect(res.body[0].deliveredAt).toBe('2026-07-04T12:00:00Z');
       });
     });
 

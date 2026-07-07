@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { MerchantClient, ChannelBalance } from '@fiber-merchant/sdk';
 import { Wallet, Banknote, ArrowDownUp, RotateCw } from 'lucide-react';
-import { StatCard, Card, CardHeader, CardTitle } from '../components/ui';
+import { StatCard, Card, CardHeader, CardTitle, Button } from '../components/ui';
 
 interface BalancePageProps {
   client: MerchantClient;
@@ -11,9 +11,11 @@ export default function BalancePage({ client }: BalancePageProps) {
   const [channels, setChannels] = useState<ChannelBalance[]>([]);
   const [totalBalance, setTotalBalance] = useState<{ local: string; remote: string; total: string } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   const loadBalance = async () => {
     setLoading(true);
+    setError('');
     try {
       const [ch, total] = await Promise.all([
         client.balance.getChannels(),
@@ -21,7 +23,9 @@ export default function BalancePage({ client }: BalancePageProps) {
       ]);
       setChannels(ch);
       setTotalBalance(total);
-    } catch { /* ignore */ }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load balance data');
+    }
     finally { setLoading(false); }
   };
 
@@ -41,6 +45,14 @@ export default function BalancePage({ client }: BalancePageProps) {
             <div className="animate-spin rounded-full h-5 w-5 border-2 border-gray-300 border-t-fiber-600" />
             <span className="text-sm">Loading balance data...</span>
           </div>
+        </div>
+      ) : error ? (
+        <div className="rounded-xl border border-red-200 bg-red-50 p-6">
+          <p className="text-sm font-medium text-red-700">Failed to load balance data</p>
+          <p className="mt-1 text-xs text-red-500">{error}</p>
+          <Button size="sm" variant="ghost" onClick={loadBalance} className="mt-3 text-red-700 hover:bg-red-100">
+            Try again
+          </Button>
         </div>
       ) : (
         <>

@@ -18,6 +18,7 @@ import { createApiLimiter, createHealthLimiter } from './middleware/rate-limit';
 import { invoiceRouter } from './routes/invoices';
 import { webhookRouter } from './routes/webhooks';
 import { merchantRouter } from './routes/merchant';
+import { getFiberClient } from './lib/fiber-client';
 
 export function createApp() {
   const app = express();
@@ -43,10 +44,7 @@ export function createApp() {
 
   // Health check (no auth required, lighter rate limit)
   app.get('/api/v1/health', createHealthLimiter(), async (_req, res) => {
-    const { FiberNodeClient } = await import('./services/fiber-client');
-    const fiber = new FiberNodeClient({
-      rpcUrl: process.env.FIBER_NODE_RPC_URL || 'demo',
-    });
+    const fiber = getFiberClient();
     try {
       const nodeInfo = await fiber.getNodeInfo();
       res.json({ status: 'ok', version: '1.0.0', fiberNode: nodeInfo });

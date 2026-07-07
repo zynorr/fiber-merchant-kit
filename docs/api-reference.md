@@ -22,7 +22,6 @@ Creates a new payment invoice. Returns the invoice details including a Bech32m-e
     "order_id": "ORD-001"
   },
   "expiry": 3600,
-  "webhookUrl": "https://api.mystore.com/webhooks/fiber",
   "allowMpp": true
 }
 ```
@@ -81,9 +80,11 @@ Retrieves invoice details. Automatically polls the Fiber node for status updates
     }
   ],
   "total": 42,
-  "cursor": "550e8400-..."
+  "cursor": "eyJpZCI6IjU1MGU4NDAwLi4uIiwiY3JlYXRlZEF0IjoiMjAyNi0wNy0wNFQxMjowMDowMFoifQ"
 }
 ```
+
+The cursor is opaque. Pass it back exactly as returned to fetch the next page.
 
 ### Cancel Invoice
 
@@ -161,9 +162,38 @@ Only paid invoices can be refunded. Initiates a payment back to the original pay
 
 `GET /webhooks/:id/deliveries`
 
+**Response:**
+```json
+[
+  {
+    "id": "delivery-uuid",
+    "webhookId": "webhook-uuid",
+    "event": "invoice.paid",
+    "url": "https://api.mystore.com/webhooks/fiber",
+    "status": 200,
+    "success": true,
+    "attempts": 1,
+    "payload": {
+      "id": "invoice-uuid",
+      "status": "paid"
+    },
+    "error": null,
+    "deliveredAt": "2026-07-04T12:05:00Z"
+  }
+]
+```
+
 ### Test Webhook
 
 `POST /webhooks/:id/test`
+
+**Response:**
+```json
+{
+  "message": "Test event sent",
+  "webhookId": "webhook-uuid"
+}
+```
 
 ## Balance
 

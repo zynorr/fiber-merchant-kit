@@ -336,7 +336,7 @@ await client.invoices.refund(invoice.id, 'Customer requested refund');
 from fiber_merchant import MerchantClient
 
 client = MerchantClient(
-    base_url="http://localhost:3001/api/v1",
+    base_url="http://localhost:3001",
     api_key="fm_sk_YOUR_API_KEY"
 )
 

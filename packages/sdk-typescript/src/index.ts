@@ -43,6 +43,7 @@ export type {
   WebhookEndpoint,
   RegisterWebhookRequest,
   WebhookDelivery,
+  WebhookTestResponse,
   Transaction,
   ChannelBalance,
   MerchantStats,

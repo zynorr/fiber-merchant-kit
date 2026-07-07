@@ -84,7 +84,6 @@ export default function DashboardPage({ client }: DashboardPageProps) {
           value={stats?.totalInvoices ?? 0}
           icon={<Receipt className="h-5 w-5" />}
           color="fiber"
-          trend={{ value: 12, positive: true }}
         />
         <StatCard
           title="Paid Invoices"

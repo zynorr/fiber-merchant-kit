@@ -44,6 +44,14 @@ describe('MerchantClient', () => {
       expect(clientWithSlash).toBeInstanceOf(MerchantClient);
     });
 
+    it('should not duplicate /api/v1 when base URL already includes it', () => {
+      new MerchantClient({
+        baseUrl: 'http://localhost:3001/api/v1',
+        apiKey: mockApiKey,
+      });
+      expect(createOptions.baseURL).toBe('http://localhost:3001/api/v1');
+    });
+
     it('should expose all resource APIs', () => {
       expect(client.invoices).toBeDefined();
       expect(client.webhooks).toBeDefined();
@@ -269,11 +277,11 @@ describe('MerchantClient', () => {
 
     describe('test', () => {
       it('should POST /webhooks/:id/test', async () => {
-        const mockDelivery = { id: 'del-test', event: 'invoice.paid', url: 'https://example.com', status: 200, success: true, attempts: 1, payload: {}, deliveredAt: '2026-07-04T12:00:00Z' };
-        mockFetch.mockResolvedValue(mockDelivery);
+        const mockResponse = { message: 'Test event sent', webhookId: 'wh-123' };
+        mockFetch.mockResolvedValue(mockResponse);
         const result = await client.webhooks.test('wh-123');
         expect(mockFetch).toHaveBeenCalledWith('/webhooks/wh-123/test', { method: 'POST' });
-        expect(result.id).toBe('del-test');
+        expect(result.webhookId).toBe('wh-123');
       });
     });
   });

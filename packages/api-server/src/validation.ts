@@ -29,7 +29,7 @@ export const createInvoiceSchema = z.object({
   description: z.string().max(500).optional(),
   metadata: z.record(z.string(), z.string()).optional(),
   expiry: z.number().int().positive().max(86400).optional(),
-  webhookUrl: z.string().url().optional().or(z.literal('')),
+  webhookUrl: z.union([z.string().url(), z.literal('')]).optional().transform((value) => value || undefined),
   allowMpp: z.boolean().optional(),
   udtTypeScript: udtTypeScriptSchema,
 });
@@ -38,12 +38,22 @@ export type CreateInvoiceInput = z.infer<typeof createInvoiceSchema>;
 
 // ── Webhook Events ────────────────────────────────────────────
 
+const invoiceStatuses = [
+  'pending', 'received', 'paid', 'expired', 'cancelled', 'refunded',
+] as const;
+
+const transactionStatuses = [
+  'Pending', 'Succeeded', 'Failed', 'Timeout', 'Abandoned',
+] as const;
+
 const validEvents = [
   'invoice.created', 'invoice.received', 'invoice.paid',
   'invoice.expired', 'invoice.cancelled', 'invoice.refunded',
   'payment.failed', 'channel.updated',
 ] as const;
 
+export const invoiceStatusSchema = z.enum(invoiceStatuses);
+export const transactionStatusSchema = z.enum(transactionStatuses);
 export const webhookEventSchema = z.enum(validEvents);
 
 // ── Register Webhook ──────────────────────────────────────────
@@ -83,11 +93,11 @@ export const paginationSchema = z.object({
 });
 
 export const listInvoicesQuerySchema = paginationSchema.extend({
-  status: z.string().optional(),
+  status: invoiceStatusSchema.optional(),
 });
 
 export const listTransactionsQuerySchema = paginationSchema.extend({
-  status: z.string().optional(),
+  status: transactionStatusSchema.optional(),
   direction: z.enum(['incoming', 'outgoing']).optional(),
 });
 

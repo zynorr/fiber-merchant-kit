@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { MerchantClient, WebhookEndpoint } from '@fiber-merchant/sdk';
-import { Plus, Webhook, Trash2, Send, Check, X, Loader2 } from 'lucide-react';
+import { MerchantClient, WebhookDelivery, WebhookEndpoint } from '@fiber-merchant/sdk';
+import { Plus, Webhook, Trash2, Send, Check, X, Loader2, Activity, RefreshCw } from 'lucide-react';
 import { Button, Card, CardHeader, CardTitle, Badge } from '../components/ui';
 import Input from '../components/ui/Input';
 
@@ -20,13 +20,22 @@ export default function WebhooksPage({ client }: WebhooksPageProps) {
   const [form, setForm] = useState({ url: '', description: '', events: ['invoice.paid', 'invoice.expired'] });
   const [saving, setSaving] = useState(false);
   const [testingId, setTestingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [deliveries, setDeliveries] = useState<Record<string, WebhookDelivery[]>>({});
+  const [loadingDeliveriesId, setLoadingDeliveriesId] = useState<string | null>(null);
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
 
   const loadWebhooks = async () => {
     setLoading(true);
+    setError('');
     try {
       const list = await client.webhooks.list();
       setWebhooks(list);
-    } catch { /* ignore */ }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load webhooks');
+    }
     finally { setLoading(false); }
   };
 
@@ -41,23 +50,26 @@ export default function WebhooksPage({ client }: WebhooksPageProps) {
         events: form.events as any,
         description: form.description,
       });
+      setNotice('Webhook endpoint created');
       setShowForm(false);
       setForm({ url: '', description: '', events: ['invoice.paid', 'invoice.expired'] });
       loadWebhooks();
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to create webhook');
+      setError(err instanceof Error ? err.message : 'Failed to create webhook');
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Delete this webhook endpoint?')) return;
     try {
       await client.webhooks.delete(id);
+      setNotice('Webhook endpoint deleted');
+      setDeletingId(null);
+      setExpandedId((current) => (current === id ? null : current));
       loadWebhooks();
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to delete');
+      setError(err instanceof Error ? err.message : 'Failed to delete webhook');
     }
   };
 
@@ -65,12 +77,34 @@ export default function WebhooksPage({ client }: WebhooksPageProps) {
     setTestingId(id);
     try {
       await client.webhooks.test(id);
-      alert('Test event sent! Check delivery logs.');
+      setNotice('Test event sent');
+      await loadDeliveries(id);
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to send test');
+      setError(err instanceof Error ? err.message : 'Failed to send test');
     } finally {
       setTestingId(null);
     }
+  };
+
+  const loadDeliveries = async (id: string) => {
+    setLoadingDeliveriesId(id);
+    try {
+      const list = await client.webhooks.getDeliveries(id);
+      setDeliveries((current) => ({ ...current, [id]: list }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load delivery logs');
+    } finally {
+      setLoadingDeliveriesId(null);
+    }
+  };
+
+  const toggleDeliveries = async (id: string) => {
+    if (expandedId === id) {
+      setExpandedId(null);
+      return;
+    }
+    setExpandedId(id);
+    if (!deliveries[id]) await loadDeliveries(id);
   };
 
   const toggleEvent = (event: string) => {
@@ -94,6 +128,24 @@ export default function WebhooksPage({ client }: WebhooksPageProps) {
           Add Webhook
         </Button>
       </div>
+
+      {notice && (
+        <div className="flex items-center justify-between rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+          <span>{notice}</span>
+          <button onClick={() => setNotice('')} className="text-emerald-500 hover:text-emerald-700">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
+      {error && (
+        <div className="flex items-center justify-between rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <span>{error}</span>
+          <button onClick={() => setError('')} className="text-red-500 hover:text-red-700">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
 
       {/* Create Form */}
       {showForm && (
@@ -194,6 +246,13 @@ export default function WebhooksPage({ client }: WebhooksPageProps) {
                   </div>
                   <div className="flex items-center gap-1 flex-shrink-0">
                     <button
+                      onClick={() => toggleDeliveries(wh.id)}
+                      className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors"
+                      title="View delivery logs"
+                    >
+                      <Activity className="h-3.5 w-3.5" />
+                    </button>
+                    <button
                       onClick={() => handleTest(wh.id)}
                       disabled={testingId === wh.id}
                       className="p-1.5 text-gray-400 hover:text-fiber-600 hover:bg-fiber-50 rounded transition-colors"
@@ -206,7 +265,7 @@ export default function WebhooksPage({ client }: WebhooksPageProps) {
                       )}
                     </button>
                     <button
-                      onClick={() => handleDelete(wh.id)}
+                      onClick={() => setDeletingId(wh.id)}
                       className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
                       title="Delete webhook"
                     >
@@ -219,6 +278,67 @@ export default function WebhooksPage({ client }: WebhooksPageProps) {
                     <Badge key={event} variant="default" size="sm">{event}</Badge>
                   ))}
                 </div>
+                {deletingId === wh.id && (
+                  <div className="mt-4 flex flex-col gap-3 rounded-lg border border-red-100 bg-red-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="text-sm text-red-700">Delete this webhook endpoint?</p>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="danger" onClick={() => handleDelete(wh.id)}>
+                        Delete
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => setDeletingId(null)}>
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                )}
+                {expandedId === wh.id && (
+                  <div className="mt-5 border-t border-gray-100 pt-4">
+                    <div className="mb-3 flex items-center justify-between">
+                      <h3 className="text-sm font-semibold text-gray-800">Delivery logs</h3>
+                      <button
+                        onClick={() => loadDeliveries(wh.id)}
+                        disabled={loadingDeliveriesId === wh.id}
+                        className="inline-flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-700 disabled:opacity-50"
+                      >
+                        {loadingDeliveriesId === wh.id ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <RefreshCw className="h-3 w-3" />
+                        )}
+                        Refresh
+                      </button>
+                    </div>
+                    {loadingDeliveriesId === wh.id && !deliveries[wh.id] ? (
+                      <p className="py-4 text-sm text-gray-400">Loading delivery logs...</p>
+                    ) : deliveries[wh.id]?.length ? (
+                      <div className="divide-y divide-gray-100 rounded-lg border border-gray-100">
+                        {deliveries[wh.id].map((delivery) => (
+                          <div key={delivery.id} className="grid gap-3 px-3 py-3 text-sm sm:grid-cols-[1fr_auto]">
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <Badge size="sm" variant={delivery.success ? 'success' : 'danger'}>
+                                  {delivery.success ? 'Delivered' : 'Failed'}
+                                </Badge>
+                                <span className="font-medium text-gray-800">{delivery.event}</span>
+                                <span className="text-xs text-gray-400">HTTP {delivery.status}</span>
+                              </div>
+                              <p className="mt-1 truncate font-mono text-xs text-gray-400">{delivery.id}</p>
+                              {delivery.error && (
+                                <p className="mt-1 text-xs text-red-600">{delivery.error}</p>
+                              )}
+                            </div>
+                            <div className="text-left text-xs text-gray-400 sm:text-right">
+                              <p>{delivery.attempts} attempt{delivery.attempts === 1 ? '' : 's'}</p>
+                              <p>{new Date(delivery.deliveredAt).toLocaleString()}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="py-4 text-sm text-gray-400">No deliveries recorded yet</p>
+                    )}
+                  </div>
+                )}
               </Card>
             );
           })}

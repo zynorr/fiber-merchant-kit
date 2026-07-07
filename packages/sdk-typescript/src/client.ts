@@ -34,6 +34,7 @@ import type {
   WebhookEndpoint,
   RegisterWebhookRequest,
   WebhookDelivery,
+  WebhookTestResponse,
   Transaction,
   ChannelBalance,
   MerchantStats,
@@ -51,9 +52,12 @@ export class MerchantClient {
 
   constructor(options: MerchantClientOptions) {
     const { baseUrl, apiKey, timeout = 30_000 } = options;
+    const normalizedBaseUrl = baseUrl.replace(/\/+$/, '');
 
     this.fetch = ofetch.create({
-      baseURL: baseUrl.replace(/\/+$/, '') + '/api/v1',
+      baseURL: normalizedBaseUrl.endsWith('/api/v1')
+        ? normalizedBaseUrl
+        : `${normalizedBaseUrl}/api/v1`,
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
@@ -158,7 +162,7 @@ class WebhookResource {
   }
 
   /** Test a webhook by sending a test event */
-  async test(id: string): Promise<WebhookDelivery> {
+  async test(id: string): Promise<WebhookTestResponse> {
     return this.fetch(`/webhooks/${id}/test`, { method: 'POST' });
   }
 }
