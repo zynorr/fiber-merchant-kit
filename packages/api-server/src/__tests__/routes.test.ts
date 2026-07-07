@@ -317,6 +317,37 @@ describe('API Routes', () => {
       });
     });
 
+    describe('POST /api/v1/invoices/:id/simulate-payment', () => {
+      it('marks a pending invoice paid in demo mode', async () => {
+        mockDb.getInvoice
+          .mockReturnValueOnce(mockInvoice)
+          .mockReturnValue({ ...mockInvoice, status: 'paid', paid_at: '2026-07-04T12:05:00Z' });
+        mockDb.updateInvoiceStatus.mockReturnValue(true);
+
+        const res = await request(app)
+          .post('/api/v1/invoices/inv-123/simulate-payment')
+          .set('Authorization', `Bearer ${API_KEY}`);
+
+        expect(res.status).toBe(200);
+        expect(res.body.status).toBe('paid');
+        expect(mockDb.updateInvoiceStatus).toHaveBeenCalledWith('inv-123', 'paid', 'merchant-1');
+        expect(mockDb.upsertIncomingPaymentTransaction).toHaveBeenCalledWith(
+          expect.objectContaining({ invoiceId: 'inv-123', paymentHash: '0xabc' }),
+        );
+      });
+
+      it('returns 400 when the invoice is not pending or received', async () => {
+        mockDb.getInvoice.mockReturnValue({ ...mockInvoice, status: 'paid' });
+
+        const res = await request(app)
+          .post('/api/v1/invoices/inv-123/simulate-payment')
+          .set('Authorization', `Bearer ${API_KEY}`);
+
+        expect(res.status).toBe(400);
+        expect(res.body.error).toMatch(/cannot simulate payment/i);
+      });
+    });
+
     describe('POST /api/v1/invoices/:id/refund', () => {
       it('refunds a paid invoice', async () => {
         mockDb.getInvoice.mockReturnValue({ ...mockInvoice, status: 'paid' });

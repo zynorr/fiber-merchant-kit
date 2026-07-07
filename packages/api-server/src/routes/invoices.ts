@@ -18,6 +18,7 @@ import { toCamelCase, rowsToCamelCase } from '../lib/utils';
 import { getFiberClient } from '../lib/fiber-client';
 import { z } from 'zod';
 import { createInvoiceSchema, listInvoicesQuerySchema, refundInvoiceSchema } from '../validation';
+import type { DbInvoice } from '../db/types';
 
 const router = Router();
 
@@ -30,6 +31,33 @@ function emitWebhookEvent(
     const message = err instanceof Error ? err.message : String(err);
     console.error(`[Invoices] Failed to dispatch ${event}:`, message);
   });
+}
+
+function isDemoSimulationEnabled(): boolean {
+  return process.env.NODE_ENV !== 'production'
+    && (!process.env.FIBER_NODE_RPC_URL || process.env.FIBER_NODE_RPC_URL === 'demo');
+}
+
+function markInvoicePaid(invoice: DbInvoice, merchantId?: string): void {
+  const changed = db.updateInvoiceStatus(invoice.id, 'paid', merchantId);
+  if (!changed) return;
+
+  db.upsertIncomingPaymentTransaction({
+    paymentHash: invoice.payment_hash,
+    invoiceId: invoice.id,
+    amount: invoice.amount,
+    currency: invoice.currency,
+    description: invoice.description,
+    metadata: typeof invoice.metadata === 'string' ? undefined : invoice.metadata,
+  });
+
+  emitWebhookEvent('invoice.paid', {
+    id: invoice.id,
+    amount: invoice.amount,
+    currency: invoice.currency,
+    status: 'paid',
+    paidAt: new Date().toISOString(),
+  }, merchantId);
 }
 
 // ── Create Invoice ────────────────────────────────────────────
@@ -149,24 +177,7 @@ router.get('/:id', async (req: AuthenticatedRequest, res: Response) => {
       try {
         const nodeStatus = await fiber.getInvoiceStatus(invoice.payment_hash);
         if (nodeStatus.status === 'Paid') {
-          const changed = db.updateInvoiceStatus(invoice.id, 'paid', req.merchantId);
-          if (changed) {
-            db.upsertIncomingPaymentTransaction({
-              paymentHash: invoice.payment_hash,
-              invoiceId: invoice.id,
-              amount: invoice.amount,
-              currency: invoice.currency,
-              description: invoice.description,
-              metadata: typeof invoice.metadata === 'string' ? undefined : invoice.metadata,
-            });
-            emitWebhookEvent('invoice.paid', {
-              id: invoice.id,
-              amount: invoice.amount,
-              currency: invoice.currency,
-              status: 'paid',
-              paidAt: new Date().toISOString(),
-            }, req.merchantId);
-          }
+          markInvoicePaid(invoice, req.merchantId);
         } else if (nodeStatus.status === 'Received' && invoice.status === 'pending') {
           const changed = db.updateInvoiceStatus(invoice.id, 'received', req.merchantId);
           if (changed) {
@@ -246,6 +257,32 @@ router.post('/:id/cancel', async (req: AuthenticatedRequest, res: Response) => {
 });
 
 // ── Refund Invoice ────────────────────────────────────────────
+
+router.post('/:id/simulate-payment', (req: AuthenticatedRequest, res: Response) => {
+  try {
+    if (!isDemoSimulationEnabled()) {
+      res.status(404).json({ error: 'Not found' });
+      return;
+    }
+
+    const invoice = db.getInvoice(req.params.id, req.merchantId);
+    if (!invoice) {
+      res.status(404).json({ error: 'Invoice not found' });
+      return;
+    }
+
+    if (invoice.status !== 'pending' && invoice.status !== 'received') {
+      res.status(400).json({ error: `Cannot simulate payment for invoice with status: ${invoice.status}` });
+      return;
+    }
+
+    markInvoicePaid(invoice, req.merchantId);
+    res.json(toCamelCase(db.getInvoice(invoice.id, req.merchantId)!));
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    res.status(500).json({ error: message });
+  }
+});
 
 router.post('/:id/refund', async (req: AuthenticatedRequest, res: Response) => {
   try {

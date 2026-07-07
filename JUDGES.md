@@ -83,6 +83,8 @@ Demo mode does not require a real Fiber node.
 7. Open the demo store and complete a checkout flow.
 8. Return to dashboard and inspect invoices, transactions, and balances.
 
+In demo mode, the store exposes a payment simulation action so judges can complete the checkout deterministically without running a real Fiber wallet.
+
 ## Implementation Evidence
 
 | Capability | Files |

@@ -15,6 +15,7 @@ Authentication: `Authorization: Bearer fm_sk_...`
 | `GET` | `/invoices` | List invoices -- `?status=paid&limit=50&cursor=...` |
 | `GET` | `/invoices/:id` | Get invoice + auto-poll for payment status |
 | `POST` | `/invoices/:id/cancel` | Cancel pending invoice |
+| `POST` | `/invoices/:id/simulate-payment` | Demo mode only -- mark invoice paid for local walkthroughs |
 | `POST` | `/invoices/:id/refund` | Refund paid invoice -- `{ reason? }` |
 | `GET` | `/invoices/:id/qr` | Get QR code data |
 

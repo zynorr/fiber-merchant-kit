@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { MerchantClient, Invoice } from '@fiber-merchant/sdk';
 import { ArrowLeft, Copy, Ban, RotateCcw, ClipboardCopy } from 'lucide-react';
 import { Button, Card, CardHeader, CardTitle, StatusBadge } from '../components/ui';
+import { formatCkbAmount } from '../utils/format';
 
 interface InvoiceDetailPageProps {
   client: MerchantClient;
@@ -100,7 +101,7 @@ export default function InvoiceDetailPage({ client }: InvoiceDetailPageProps) {
     { label: 'Invoice ID', value: invoice.id, mono: true },
     { label: 'Payment Hash', value: invoice.paymentHash, mono: true },
     { label: 'Description', value: invoice.description || <span className="italic text-gray-300">No description</span> },
-    { label: 'Amount', value: `${(Number(invoice.amount) / 1e8).toFixed(2)} ${invoice.currency}`, large: true },
+    { label: 'Amount', value: `${formatCkbAmount(invoice.amount)} ${invoice.currency}`, large: true },
     { label: 'Status', value: <StatusBadge status={invoice.status} /> },
     { label: 'Created', value: new Date(invoice.createdAt).toLocaleString() },
     { label: 'Expires', value: new Date(invoice.expiresAt).toLocaleString() },

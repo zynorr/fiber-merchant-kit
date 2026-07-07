@@ -12,6 +12,7 @@ import {
   ArrowRight,
 } from 'lucide-react';
 import { StatCard, Card, CardHeader, CardTitle } from '../components/ui';
+import { formatCkbAmount } from '../utils/format';
 
 interface DashboardPageProps {
   client: MerchantClient;
@@ -94,7 +95,7 @@ export default function DashboardPage({ client }: DashboardPageProps) {
         />
         <StatCard
           title="Total Volume"
-          value={`${(Number(stats?.totalVolume ?? 0) / 1e8).toFixed(2)}`}
+          value={formatCkbAmount(stats?.totalVolume ?? 0)}
           subtitle="CKB"
           icon={<CircleDollarSign className="h-5 w-5" />}
           color="violet"
@@ -181,7 +182,7 @@ export default function DashboardPage({ client }: DashboardPageProps) {
                 </div>
                 <div className="w-28 text-right flex-shrink-0">
                   <span className="text-sm font-semibold text-gray-900">
-                    {(Number(day.volume) / 1e8).toFixed(2)}
+                    {formatCkbAmount(day.volume)}
                   </span>
                   <span className="text-xs text-gray-400 ml-1">CKB</span>
                 </div>

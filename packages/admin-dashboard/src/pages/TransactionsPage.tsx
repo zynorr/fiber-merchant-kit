@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { MerchantClient, Transaction } from '@fiber-merchant/sdk';
 import { ArrowLeftRight, ArrowDownLeft, ArrowUpRight, RotateCw } from 'lucide-react';
 import { Card, StatusBadge, Button } from '../components/ui';
+import { formatCkbAmount } from '../utils/format';
 
 interface TransactionsPageProps {
   client: MerchantClient;
@@ -119,7 +120,7 @@ export default function TransactionsPage({ client }: TransactionsPageProps) {
                   </td>
                   <td className="px-4 py-3.5">
                     <span className="text-sm font-semibold text-gray-900">
-                      {(Number(tx.amount) / 1e8).toFixed(2)}
+                      {formatCkbAmount(tx.amount)}
                     </span>
                     <span className="text-xs text-gray-400 ml-1">{tx.currency}</span>
                   </td>

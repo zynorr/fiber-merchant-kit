@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { MerchantClient, ChannelBalance } from '@fiber-merchant/sdk';
 import { Wallet, Banknote, ArrowDownUp, RotateCw } from 'lucide-react';
 import { StatCard, Card, CardHeader, CardTitle, Button } from '../components/ui';
+import { formatCkbAmount } from '../utils/format';
 
 interface BalancePageProps {
   client: MerchantClient;
@@ -61,21 +62,21 @@ export default function BalancePage({ client }: BalancePageProps) {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <StatCard
                 title="Local Balance"
-                value={`${(Number(totalBalance.local) / 1e8).toFixed(2)}`}
+                value={formatCkbAmount(totalBalance.local)}
                 subtitle="CKB"
                 icon={<ArrowDownUp className="h-5 w-5" />}
                 color="emerald"
               />
               <StatCard
                 title="Remote Balance"
-                value={`${(Number(totalBalance.remote) / 1e8).toFixed(2)}`}
+                value={formatCkbAmount(totalBalance.remote)}
                 subtitle="CKB"
                 icon={<Banknote className="h-5 w-5" />}
                 color="sky"
               />
               <StatCard
                 title="Total Capacity"
-                value={`${(Number(totalBalance.total) / 1e8).toFixed(2)}`}
+                value={formatCkbAmount(totalBalance.total)}
                 subtitle="CKB"
                 icon={<Wallet className="h-5 w-5" />}
                 color="fiber"
@@ -130,8 +131,8 @@ export default function BalancePage({ client }: BalancePageProps) {
                       <div className="flex items-center gap-4">
                         <div className="flex-1">
                           <div className="flex justify-between text-xs text-gray-500 mb-1.5">
-                            <span>Local: {(Number(ch.localBalance) / 1e8).toFixed(2)}</span>
-                            <span>Remote: {(Number(ch.remoteBalance) / 1e8).toFixed(2)}</span>
+                            <span>Local: {formatCkbAmount(ch.localBalance)}</span>
+                            <span>Remote: {formatCkbAmount(ch.remoteBalance)}</span>
                           </div>
                           <div className="bg-gray-200 rounded-full h-2.5 overflow-hidden flex">
                             <div
@@ -145,7 +146,7 @@ export default function BalancePage({ client }: BalancePageProps) {
                           </div>
                           <div className="flex justify-between text-[10px] text-gray-400 mt-1">
                             <span>Local</span>
-                            <span>{(Number(ch.capacity) / 1e8).toFixed(2)} total</span>
+                            <span>{formatCkbAmount(ch.capacity)} total</span>
                             <span>Remote</span>
                           </div>
                         </div>

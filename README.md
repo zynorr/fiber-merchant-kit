@@ -130,7 +130,7 @@ When the API server starts, copy the printed `fm_sk_...` API key and use it in t
 3. Open the invoice detail page and poll/refresh status.
 4. Register a webhook endpoint and send a test event.
 5. Open the demo store, add products, and start checkout.
-6. Watch the invoice move through pending, paid, expired, or cancelled states.
+6. Use the demo payment action to complete checkout, then confirm the paid invoice in the dashboard.
 
 Demo mode works without a real Fiber node. In production, set `FIBER_NODE_RPC_URL`, `FIBER_NODE_RPC_USER`, and `FIBER_NODE_RPC_PASSWORD`.
 
@@ -161,6 +161,7 @@ Important endpoints:
 |---|---|
 | `POST /api/v1/invoices` | Create invoice |
 | `GET /api/v1/invoices/:id` | Get invoice and refresh payment status |
+| `POST /api/v1/invoices/:id/simulate-payment` | Demo mode only payment confirmation |
 | `POST /api/v1/invoices/:id/refund` | Refund paid invoice |
 | `POST /api/v1/webhooks` | Register webhook endpoint |
 | `GET /api/v1/webhooks/:id/deliveries` | Inspect delivery logs |

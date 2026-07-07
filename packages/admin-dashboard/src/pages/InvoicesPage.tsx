@@ -5,6 +5,7 @@ import { Plus, Receipt, RotateCw, Search, X } from 'lucide-react';
 import { Button, Card, CardHeader, CardTitle, StatusBadge } from '../components/ui';
 import Input from '../components/ui/Input';
 import { Select } from '../components/ui/Input';
+import { formatCkbAmount } from '../utils/format';
 
 interface InvoicesPageProps {
   client: MerchantClient;
@@ -207,7 +208,7 @@ export default function InvoicesPage({ client }: InvoicesPageProps) {
                   </td>
                   <td className="px-4 py-3.5">
                     <span className="text-sm font-semibold text-gray-900">
-                      {(Number(inv.amount) / 1e8).toFixed(2)}
+                      {formatCkbAmount(inv.amount)}
                     </span>
                     <span className="text-xs text-gray-400 ml-1">{inv.currency}</span>
                   </td>

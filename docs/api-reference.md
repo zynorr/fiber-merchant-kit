@@ -92,6 +92,12 @@ The cursor is opaque. Pass it back exactly as returned to fetch the next page.
 
 Only pending invoices can be cancelled.
 
+### Simulate Payment
+
+`POST /invoices/:id/simulate-payment`
+
+Demo mode only. Marks a pending or received invoice as paid, promotes the incoming transaction, and emits the normal `invoice.paid` webhook. Production mode returns `404`.
+
 ### Refund Invoice
 
 `POST /invoices/:id/refund`
