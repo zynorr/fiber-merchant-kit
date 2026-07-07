@@ -1,0 +1,28 @@
+[project]
+name = "fiber-merchant"
+version = "1.0.0"
+description = "Python SDK for Fiber Merchant Kit — accept Fiber Network payments in any Python application"
+authors = [
+    { name = "Fiber Merchant Kit Team" },
+]
+license = { text = "MIT" }
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "httpx>=0.27.0",
+]
+
+[project.urls]
+homepage = "https://github.com/zynorr/fiber-merchant-kit"
+documentation = "https://github.com/zynorr/fiber-merchant-kit"
+repository = "https://github.com/zynorr/fiber-merchant-kit"
+
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+fiber_merchant = ["py.typed"]

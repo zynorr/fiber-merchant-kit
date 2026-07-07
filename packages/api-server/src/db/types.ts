@@ -1,0 +1,97 @@
+/**
+ * Fiber Merchant Kit — Typed database row interfaces
+ *
+ * Each interface matches the snake_case columns of the corresponding SQLite table.
+ * These are the raw shapes returned by better-sqlite3.
+ */
+
+export interface DbMerchant {
+  id: string;
+  api_key: string;
+  label: string | null;
+  active: number;
+  created_at: string;
+  last_used_at: string | null;
+}
+
+export interface DbInvoice {
+  id: string;
+  payment_hash: string;
+  preimage: string | null;
+  invoice_address: string;
+  amount: string;
+  currency: string;
+  description: string | null;
+  /** JSON-encoded string or parsed object after getInvoice processes it */
+  metadata: string | Record<string, string> | null;
+  status: string;
+  expires_at: string;
+  paid_at: string | null;
+  refunded_at: string | null;
+  webhook_url: string | null;
+  merchant_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DbWebhook {
+  id: string;
+  url: string;
+  /** JSON-encoded array of event strings */
+  events: string | string[];
+  secret: string;
+  description: string | null;
+  active: number;
+  merchant_id: string | null;
+  created_at: string;
+}
+
+export interface DbWebhookDelivery {
+  id: string;
+  webhook_id: string | null;
+  event: string;
+  url: string;
+  status_code: number | null;
+  success: number;
+  attempts: number | null;
+  payload: string | null;
+  error: string | null;
+  delivered_at: string;
+}
+
+export interface DbTransaction {
+  id: string;
+  payment_hash: string;
+  invoice_id: string | null;
+  direction: string;
+  amount: string;
+  currency: string;
+  fee: string;
+  status: string;
+  counterparty: string | null;
+  description: string | null;
+  metadata: string | null;
+  created_at: string;
+}
+
+/** Paginated result wrapper */
+export interface PaginatedResult<T> {
+  items: T[];
+  total: number;
+  cursor?: string;
+}
+
+/** Merchant stats (computed from DB) */
+export interface MerchantStats {
+  totalInvoices: number;
+  paidInvoices: number;
+  totalVolume: string;
+  successRate: number;
+}
+
+/** Revenue history row (from SQL aggregation) */
+export interface RevenueRow {
+  date: string;
+  volume: number;
+  count: number;
+}

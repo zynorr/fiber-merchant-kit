@@ -1,0 +1,23 @@
+{
+  "name": "fiber-merchant-kit",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Fiber Merchant Kit — Payment processing infrastructure for Fiber Network",
+  "workspaces": [
+    "packages/sdk-typescript",
+    "packages/api-server",
+    "packages/admin-dashboard",
+    "packages/demo-store"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces",
+    "dev": "concurrently \"npm run dev -w packages/server\" \"npm run dev -w packages/dashboard\" \"npm run dev -w packages/demo-store\"",
+    "start": "npm run start -w packages/server",
+    "test": "npm run test --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "typescript": "^5.4.0"
+  }
+}
