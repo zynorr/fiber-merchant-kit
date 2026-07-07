@@ -37,6 +37,10 @@ const envSchema = z.object({
 
   FIBER_NODE_RPC_PASSWORD: z.string().optional(),
 
+  FIBER_NODE_RPC_AUTH_TOKEN: z.string().optional(),
+
+  FIBER_NODE_CURRENCY: z.enum(['Fibt', 'Fibb', 'Fibd']).optional(),
+
   // CORS
   CORS_ORIGIN: z.string().optional(),
 
@@ -137,22 +141,23 @@ export function validateEnv(): { env: ValidatedEnv; warnings: EnvWarning[] } {
       });
     }
 
-    // RPC user set but password missing (or vice versa)
-    if (env.FIBER_NODE_RPC_USER && !env.FIBER_NODE_RPC_PASSWORD) {
+    // RPC user set but password missing (or vice versa).
+    // Bearer tokens are preferred for protected/public Fiber RPC endpoints.
+    if (!env.FIBER_NODE_RPC_AUTH_TOKEN && env.FIBER_NODE_RPC_USER && !env.FIBER_NODE_RPC_PASSWORD) {
       warnings.push({
         field: 'FIBER_NODE_RPC_PASSWORD',
         message:
           'FIBER_NODE_RPC_USER is set but FIBER_NODE_RPC_PASSWORD is missing. ' +
-          'Either set both credentials or leave both unset.',
+          'Either set both credentials, set FIBER_NODE_RPC_AUTH_TOKEN, or leave auth unset for a private node.',
         severity: 'warning',
       });
     }
-    if (!env.FIBER_NODE_RPC_USER && env.FIBER_NODE_RPC_PASSWORD) {
+    if (!env.FIBER_NODE_RPC_AUTH_TOKEN && !env.FIBER_NODE_RPC_USER && env.FIBER_NODE_RPC_PASSWORD) {
       warnings.push({
         field: 'FIBER_NODE_RPC_USER',
         message:
           'FIBER_NODE_RPC_PASSWORD is set but FIBER_NODE_RPC_USER is missing. ' +
-          'Either set both credentials or leave both unset.',
+          'Either set both credentials, set FIBER_NODE_RPC_AUTH_TOKEN, or leave auth unset for a private node.',
         severity: 'warning',
       });
     }

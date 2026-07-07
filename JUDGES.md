@@ -15,6 +15,7 @@ Fiber Merchant Kit is merchant payment infrastructure for the Fiber Network: it 
 | 10 minutes | Inspect the API and webhook core | `packages/api-server/src/routes/invoices.ts`, `packages/api-server/src/services/webhook-delivery.ts` |
 | 15 minutes | Run the project | API, dashboard, and demo store working together |
 | 20 minutes | Inspect SDKs and dashboard | Developer integration plus merchant operation workflow |
+| Optional | Run [docs/testnet-smoke.md](docs/testnet-smoke.md) | Confirms a real Fiber testnet node can answer the app's RPC adapter |
 
 ## Why This Project Exists
 
@@ -72,6 +73,14 @@ Services:
 
 Demo mode does not require a real Fiber node.
 
+For a real Fiber testnet check, provide `FIBER_NODE_RPC_URL` and run:
+
+```bash
+npm run testnet:smoke
+```
+
+The read-only smoke verifies `node_info` and `list_channels`. Set `FIBER_TESTNET_CREATE_INVOICE=true` only when you want the smoke to create a testnet invoice through `new_invoice`.
+
 ## Suggested Demo Script
 
 1. Start the repo and copy the printed `fm_sk_...` API key.
@@ -128,6 +137,7 @@ During development, the project was verified with:
 - TypeScript checks across API, SDK, dashboard, and demo store.
 - Python SDK smoke test in this environment.
 - Real sql.js database smoke test for invoice transition behavior.
+- Fiber testnet smoke harness for `node_info`, `list_channels`, and optional `new_invoice`.
 
 ## Senior Engineering Notes
 
@@ -151,11 +161,13 @@ The current architecture is intentionally hackathon-friendly and production-shap
 | Single API key auth | Merchant users, teams, RBAC |
 | Poll-on-read status refresh | Background worker plus event-driven updates |
 | Demo mode | Real Fiber node deployment |
+| Testnet smoke | Funded multi-node settlement scenario |
 
 ## Useful Links
 
 - [README](README.md)
 - [Architecture](docs/architecture.md)
 - [Getting Started](docs/getting-started.md)
+- [Fiber Testnet Smoke](docs/testnet-smoke.md)
 - [API Reference](docs/api-reference.md)
 - [Hackathon Submission](hackathon-submission.md)

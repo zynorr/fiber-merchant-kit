@@ -14,7 +14,8 @@
     "dev": "concurrently \"npm run dev -w packages/api-server\" \"npm run dev -w packages/admin-dashboard\" \"npm run dev -w packages/demo-store\"",
     "start": "npm run start -w packages/api-server",
     "test": "npm run test --workspaces --if-present",
-    "lint": "npm run lint --workspaces --if-present"
+    "lint": "npm run lint --workspaces --if-present",
+    "testnet:smoke": "npm run testnet:smoke -w packages/api-server"
   },
   "devDependencies": {
     "concurrently": "^8.2.2",

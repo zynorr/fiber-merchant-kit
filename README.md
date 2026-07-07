@@ -92,6 +92,7 @@ Full architecture: [docs/architecture.md](docs/architecture.md)
 | [packages/sdk-python](packages/sdk-python) | Python SDK with webhook signature helper |
 | [docs/api-reference.md](docs/api-reference.md) | Endpoint reference and response shapes |
 | [docs/getting-started.md](docs/getting-started.md) | Local setup walkthrough |
+| [docs/testnet-smoke.md](docs/testnet-smoke.md) | Real Fiber testnet smoke test path |
 | [JUDGES.md](JUDGES.md) | Hackathon review guide |
 
 ## Quick Start
@@ -132,7 +133,7 @@ When the API server starts, copy the printed `fm_sk_...` API key and use it in t
 5. Open the demo store, add products, and start checkout.
 6. Use the demo payment action to complete checkout, then confirm the paid invoice in the dashboard.
 
-Demo mode works without a real Fiber node. In production, set `FIBER_NODE_RPC_URL`, `FIBER_NODE_RPC_USER`, and `FIBER_NODE_RPC_PASSWORD`.
+Demo mode works without a real Fiber node. For testnet/production, set `FIBER_NODE_RPC_URL` plus either `FIBER_NODE_RPC_AUTH_TOKEN` for protected Fiber RPC endpoints or `FIBER_NODE_RPC_USER`/`FIBER_NODE_RPC_PASSWORD` for private basic-auth setups.
 
 ## Core Technical Decisions
 
@@ -219,7 +220,10 @@ Useful commands:
 npm run test --workspaces --if-present
 npm run lint --workspaces --if-present
 npm run build --workspaces
+npm run testnet:smoke
 ```
+
+The testnet smoke command requires a real FNN RPC endpoint and is documented in [docs/testnet-smoke.md](docs/testnet-smoke.md). Without that endpoint, it exits with a clear configuration error instead of pretending demo mode is a chain-backed test.
 
 ## Production Notes
 
@@ -230,12 +234,13 @@ Demo mode is intentionally frictionless for judging. For production:
 | Persistence | SQLite via sql.js | PostgreSQL adapter for horizontal scale |
 | Auth | API key bearer tokens | Merchant users and RBAC |
 | Webhooks | Signed delivery, retry logs, and manual replay | Durable background queue |
-| Fiber RPC | Real RPC wrapper plus demo mode | Node health monitoring and alerting |
+| Fiber RPC | Current FNN RPC wrapper, bearer/basic auth, demo mode, and testnet smoke command | Node health monitoring and alerting |
 
 ## Links
 
 - [Judge Guide](JUDGES.md)
 - [Architecture](docs/architecture.md)
 - [Getting Started](docs/getting-started.md)
+- [Fiber Testnet Smoke](docs/testnet-smoke.md)
 - [API Reference](docs/api-reference.md)
 - [Quick API Sheet](API.md)

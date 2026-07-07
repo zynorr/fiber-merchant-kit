@@ -4,8 +4,10 @@
  * Environment variables:
  *   PORT              -- HTTP port (default: 3001)
  *   FIBER_NODE_RPC_URL -- Fiber node RPC endpoint (set to 'demo' for demo mode)
- *   FIBER_NODE_RPC_USER -- RPC user (optional)
- *   FIBER_NODE_RPC_PASSWORD -- RPC password (optional)
+ *   FIBER_NODE_RPC_AUTH_TOKEN -- Fiber RPC bearer auth token (optional)
+ *   FIBER_NODE_RPC_USER -- RPC basic auth user (optional)
+ *   FIBER_NODE_RPC_PASSWORD -- RPC basic auth password (optional)
+ *   FIBER_NODE_CURRENCY -- Fiber invoice currency: Fibt/Fibb/Fibd (optional)
  *   CORS_ORIGIN       -- Allowed CORS origin (default: *)
  *   FIBER_MERCHANT_DB_PATH -- SQLite database path
  */

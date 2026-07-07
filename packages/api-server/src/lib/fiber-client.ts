@@ -11,5 +11,7 @@ export function getFiberClient(): FiberNodeClient {
     rpcUrl: process.env.FIBER_NODE_RPC_URL || 'demo',
     rpcUser: process.env.FIBER_NODE_RPC_USER,
     rpcPassword: process.env.FIBER_NODE_RPC_PASSWORD,
+    rpcAuthToken: process.env.FIBER_NODE_RPC_AUTH_TOKEN,
+    rpcCurrency: process.env.FIBER_NODE_CURRENCY,
   });
 }

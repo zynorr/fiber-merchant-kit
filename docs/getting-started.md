@@ -147,17 +147,18 @@ For production, set these environment variables:
 
 ```bash
 FIBER_NODE_RPC_URL=http://localhost:8227  # Your FNN RPC endpoint
-FIBER_NODE_RPC_USER=ckb                    # RPC auth user
-FIBER_NODE_RPC_PASSWORD=securepassword     # RPC auth password
+FIBER_NODE_RPC_AUTH_TOKEN=token            # Preferred Biscuit bearer token for protected RPC
+FIBER_NODE_CURRENCY=Fibt                   # Fibt=testnet, Fibb=mainnet, Fibd=dev
 CORS_ORIGIN=https://mymerchant.com         # Restrict CORS
 PORT=3001                                  # Server port
 ```
 
 ### Running with a Real Fiber Node
 
-1. Set up an FNN node following the [Fiber docs](https://github.com/nervosnetwork/fiber)
+1. Set up an FNN node following the [Fiber docs](https://www.fiber.world/docs/quick-start/run-a-node)
 2. Configure `FIBER_NODE_RPC_URL` to point to your node
-3. Restart the server
+3. Run `npm run testnet:smoke` to verify `node_info` and `list_channels`
+4. Restart the server
 
 ## Troubleshooting
 

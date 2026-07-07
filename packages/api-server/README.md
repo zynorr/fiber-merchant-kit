@@ -20,10 +20,22 @@ The server will start on `http://localhost:3001` and display your demo API key i
 |---|---|---|
 | PORT | 3001 | HTTP port |
 | FIBER_NODE_RPC_URL | demo | Fiber node RPC endpoint. Set to your actual FNN RPC URL for production. Use "demo" for testing. |
-| FIBER_NODE_RPC_USER | — | RPC auth username |
-| FIBER_NODE_RPC_PASSWORD | — | RPC auth password |
+| FIBER_NODE_RPC_AUTH_TOKEN | - | Preferred bearer token for protected Fiber RPC endpoints |
+| FIBER_NODE_CURRENCY | Fibt | Fiber invoice network currency: Fibt=testnet, Fibb=mainnet, Fibd=dev |
+| FIBER_NODE_RPC_USER | - | Optional basic auth username for private/local RPC |
+| FIBER_NODE_RPC_PASSWORD | - | Optional basic auth password for private/local RPC |
 | CORS_ORIGIN | * | Allowed CORS origin |
 | FIBER_MERCHANT_DB_PATH | ./data/merchant.db | SQLite database path |
+
+## Fiber Testnet Smoke
+
+With a real testnet FNN RPC endpoint configured:
+
+```bash
+npm run testnet:smoke
+```
+
+This checks `node_info` and `list_channels` without side effects. Set `FIBER_TESTNET_CREATE_INVOICE=true` to also create a testnet invoice through `new_invoice`. Full instructions are in `../../docs/testnet-smoke.md`.
 
 ## API Endpoints
 

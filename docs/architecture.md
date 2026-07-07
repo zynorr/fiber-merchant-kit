@@ -229,6 +229,8 @@ This keeps SQLite simple while giving JS and Python clients a predictable public
 | Channels | Sample balances | Real channel list |
 | Setup cost | No external services | Fiber node credentials required |
 
+Production/testnet RPC configuration supports current FNN JSON-RPC method names, Biscuit bearer auth via `FIBER_NODE_RPC_AUTH_TOKEN`, private basic auth as a fallback, and a repeatable smoke command documented in [testnet-smoke.md](testnet-smoke.md).
+
 ## Review Checklist
 
 Judges can inspect these files to validate the architecture:
@@ -239,6 +241,7 @@ Judges can inspect these files to validate the architecture:
 | How are invoice state transitions handled? | `packages/api-server/src/routes/invoices.ts`, `packages/api-server/src/db/index.ts` |
 | How are webhook retries implemented? | `packages/api-server/src/services/webhook-delivery.ts` |
 | How are API inputs validated? | `packages/api-server/src/validation.ts` |
+| How do we smoke-test a real Fiber testnet node? | `docs/testnet-smoke.md`, `packages/api-server/src/scripts/testnet-smoke.ts` |
 | How do SDKs map to API endpoints? | `packages/sdk-typescript/src/client.ts`, `packages/sdk-python/src/fiber_merchant/client.py` |
 | How does the dashboard expose merchant workflows? | `packages/admin-dashboard/src/pages` |
 | How does the demo store exercise checkout? | `packages/demo-store/src/App.tsx` |

@@ -77,6 +77,25 @@ describe('validateEnv', () => {
     expect(urlErr).toBeUndefined();
   });
 
+  it('accepts bearer auth token and Fiber network currency', () => {
+    vi.stubEnv('FIBER_NODE_RPC_URL', 'http://localhost:8227');
+    vi.stubEnv('FIBER_NODE_RPC_AUTH_TOKEN', 'test-biscuit-token');
+    vi.stubEnv('FIBER_NODE_CURRENCY', 'Fibt');
+    const { env, warnings } = validateEnv();
+    expect(env.FIBER_NODE_RPC_AUTH_TOKEN).toBe('test-biscuit-token');
+    expect(env.FIBER_NODE_CURRENCY).toBe('Fibt');
+    expect(warnings.filter((w) => w.severity === 'error')).toHaveLength(0);
+  });
+
+  it('does not require basic auth password when bearer token is set', () => {
+    vi.stubEnv('FIBER_NODE_RPC_URL', 'http://localhost:8227');
+    vi.stubEnv('FIBER_NODE_RPC_AUTH_TOKEN', 'test-biscuit-token');
+    vi.stubEnv('FIBER_NODE_RPC_USER', 'ckb');
+    const { warnings } = validateEnv();
+    const pwWarn = warnings.find((w) => w.field === 'FIBER_NODE_RPC_PASSWORD');
+    expect(pwWarn).toBeUndefined();
+  });
+
   it('warns on invalid FIBER_NODE_RPC_URL format', () => {
     vi.stubEnv('FIBER_NODE_RPC_URL', 'not-a-url');
     const { warnings } = validateEnv();
