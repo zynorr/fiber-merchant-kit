@@ -663,6 +663,55 @@ describe('API Routes', () => {
     });
   });
 
+  // ── Rate Limiting ─────────────────────────────────────────
+
+  describe('Rate limiting', () => {
+    it('returns 429 when rate limit is exceeded', async () => {
+      vi.stubEnv('DISABLE_RATE_LIMIT', 'false');
+      vi.stubEnv('RATE_LIMIT_WINDOW_MS', '60000');
+      vi.stubEnv('RATE_LIMIT_MAX_REQUESTS', '3');
+      app = createApp();
+
+      // First 3 requests should succeed
+      for (let i = 0; i < 3; i++) {
+        const res = await request(app)
+          .get('/api/v1/invoices')
+          .set('Authorization', `Bearer ${API_KEY}`);
+        expect(res.status).toBe(200);
+      }
+
+      // 4th request should be rate limited
+      const res = await request(app)
+        .get('/api/v1/invoices')
+        .set('Authorization', `Bearer ${API_KEY}`);
+
+      expect(res.status).toBe(429);
+      expect(res.body.error).toMatch(/too many requests/i);
+
+      vi.unstubAllEnvs();
+    });
+
+    it('can be disabled via DISABLE_RATE_LIMIT env var', async () => {
+      vi.stubEnv('DISABLE_RATE_LIMIT', 'true');
+      vi.stubEnv('RATE_LIMIT_WINDOW_MS', '60000');
+      vi.stubEnv('RATE_LIMIT_MAX_REQUESTS', '1');
+      app = createApp();
+
+      // Should handle multiple requests without rate limiting
+      const res1 = await request(app)
+        .get('/api/v1/invoices')
+        .set('Authorization', `Bearer ${API_KEY}`);
+      expect(res1.status).toBe(200);
+
+      const res2 = await request(app)
+        .get('/api/v1/invoices')
+        .set('Authorization', `Bearer ${API_KEY}`);
+      expect(res2.status).toBe(200);
+
+      vi.unstubAllEnvs();
+    });
+  });
+
   // ── 404 Handler ────────────────────────────────────────────
 
   describe('404 handling', () => {

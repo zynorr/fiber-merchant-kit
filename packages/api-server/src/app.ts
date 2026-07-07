@@ -14,6 +14,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import { authMiddleware } from './middleware/auth';
+import { createApiLimiter, createHealthLimiter } from './middleware/rate-limit';
 import { invoiceRouter } from './routes/invoices';
 import { webhookRouter } from './routes/webhooks';
 import { merchantRouter } from './routes/merchant';
@@ -32,10 +33,16 @@ export function createApp() {
   app.use(morgan('short'));
   app.use(express.json());
 
+  // ── Rate Limiting ────────────────────────────────────────────
+  // Apply rate limiter to all API routes (configurable via env vars)
+  if (process.env.DISABLE_RATE_LIMIT !== 'true') {
+    app.use('/api/v1', createApiLimiter());
+  }
+
   // ── Public Routes ────────────────────────────────────────────
 
-  // Health check (no auth required)
-  app.get('/api/v1/health', async (_req, res) => {
+  // Health check (no auth required, lighter rate limit)
+  app.get('/api/v1/health', createHealthLimiter(), async (_req, res) => {
     const { FiberNodeClient } = await import('./services/fiber-client');
     const fiber = new FiberNodeClient({
       rpcUrl: process.env.FIBER_NODE_RPC_URL || 'demo',
