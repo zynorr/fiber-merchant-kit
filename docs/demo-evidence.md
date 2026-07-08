@@ -2,6 +2,50 @@
 
 This document records a live local demo checkout run for hackathon review.
 
+## Final Hosted Smoke Before Submission
+
+This run verifies the public Fly.io judge demo immediately before submission. It exercises the hosted API, merchant dashboard, FiberStore checkout, demo payment completion, authenticated dashboard reads, transactions, and stats.
+
+| Field | Value |
+|---|---|
+| Date | July 8, 2026 |
+| Time | `2026-07-08T19:59:05Z` to `2026-07-08T19:59:18Z` |
+| Repository head at smoke time | `2d26678` |
+| Public URL | `https://fiber-merchant-kit-zynorr.fly.dev` |
+| Dashboard | `https://fiber-merchant-kit-zynorr.fly.dev/dashboard` |
+| FiberStore | `https://fiber-merchant-kit-zynorr.fly.dev/store` |
+| Mode | Demo Fiber client |
+
+| Check | Result |
+|---|---|
+| Public API health | Passed (`status=ok`, `fiberNode=demo-node`, `channels=2`) |
+| Server index links | Passed (`/dashboard` and `/store` present) |
+| Public dashboard HTML | Passed |
+| Public FiberStore HTML | Passed |
+| Hosted dashboard demo key helper | Passed (`HEAD /api/v1/demo-store/demo-key` returned `204`; `GET` returned a valid masked `fm_sk_...` key) |
+| Authenticated dashboard stats before checkout | Passed (`totalInvoices=0`, `paidInvoices=0`) |
+| Keyless FiberStore checkout via public API | Passed |
+| Demo payment simulation via public API | Passed |
+| Public invoice polling | `paid` |
+| Authenticated dashboard invoice lookup | `paid` |
+| Transaction list | Incoming transaction promoted to `Succeeded` |
+| Authenticated dashboard stats after checkout | Passed (`totalInvoices=1`, `paidInvoices=1`, `successRate=100`) |
+
+| Field | Value |
+|---|---|
+| Invoice ID | `36320171-351a-4d20-9b9a-1402d70a3af7` |
+| Invoice status | `paid` |
+| Amount | `30000` |
+| Currency | `CKB` |
+| Payment hash | `4c74e6a43a884fcaf505e5622f116db61accec2660d18892b8bd139276786824` |
+| Invoice address | `fibtNGM3NGU2YTQzYTg4NGZjYWY1MDVlNTYyMmYxMTZk` |
+| Transaction ID | `2501f58f-2c8d-4f4d-ae8d-cafd6bf76c26` |
+| Transaction status | `Succeeded` |
+| Transaction direction | `incoming` |
+| Transaction description | `Demo store order: Cyber Widget x1, Digital Art Pack x1` |
+
+This confirms the hosted judge demo can be opened from a clean browser, the FiberStore shopper path creates an invoice without a merchant API key, the demo payment endpoint marks the invoice paid, and the merchant dashboard/API can observe the paid invoice plus promoted incoming transaction.
+
 ## Run Context
 
 | Field | Value |
