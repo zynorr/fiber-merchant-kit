@@ -258,7 +258,7 @@ The testnet smoke command requires a real FNN RPC endpoint and is documented in 
 
 GitHub Actions also validates the production Compose file, including the PostgreSQL profile, and builds the production API Docker image from `Dockerfile`.
 
-Latest smoke result: on July 7, 2026, the adapter and Merchant API passed live-mode invoice creation against a local FNN `v0.8.1` testnet node using the official config. The same evidence file now includes a funded live Fiber testnet settlement: public `ChannelReady` channels, faucet funding transactions, and payment hash `0xe28512a5139dcd8ce648d6ab8e2a6924f4ce1f64d1ce52a45212689dca859864` with status `Success`.
+Latest smoke result: on July 8, 2026, the demo store was redeployed against a disposable local FNN `v0.8.1` testnet node and created live invoice `903492a3-27cc-4927-b19d-2f19496c3c6b` with payment hash `a60c8807ea5d69425fcd36878261fdb6df7287d770946166ec4eb3a4180893f8`. The same evidence file includes the July 7 funded live Fiber testnet settlement: public `ChannelReady` channels, faucet funding transactions, and payment hash `0xe28512a5139dcd8ce648d6ab8e2a6924f4ce1f64d1ce52a45212689dca859864` with status `Success`.
 
 Latest demo checkout evidence: the local demo store completed a paid checkout and created transaction `987865e5-6d8c-47df-9d8c-ea906598a3b8`; see [docs/demo-evidence.md](docs/demo-evidence.md).
 

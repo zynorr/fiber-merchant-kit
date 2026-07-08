@@ -108,6 +108,28 @@ Observed result:
 
 This verifies the end-to-end path from Merchant API route to real FNN testnet RPC.
 
+## Live Demo Store Against FNN Result
+
+On July 8, 2026, the demo store was redeployed against a disposable local FNN `v0.8.1` testnet node using the official Windows release archive and bundled `config/testnet/config.yml`.
+
+Observed result:
+
+| Check | Result |
+|---|---|
+| FNN startup | Passed, RPC listening on `http://127.0.0.1:8227` and P2P on `8228` |
+| FNN peer connection | Passed, connected to 1 bootnode peer |
+| Direct `testnet:smoke` | Passed `node_info`, `list_channels`, and optional `new_invoice` |
+| Direct smoke invoice | Passed, created amount `1000` invoice with payment hash `181c9cef30dbd9d870e721dc421c9ecd84fb7dde373cf29515e554bac5f82b5a` |
+| Merchant API live mode | Passed, `GET /api/v1/health` returned `ok` with Fiber version `0.8.1` |
+| Merchant API invoice | Passed, created invoice `e621eed9-5a8c-4d7f-a847-c19180b8ccc7` with payment hash `84c84bf23f60f0c049c1354ba8a918186691c1907136da89647ca4fb614d2c61` |
+| Demo store mode badge | Passed, displayed `Live node` |
+| Demo store checkout | Passed, created invoice `903492a3-27cc-4927-b19d-2f19496c3c6b` for `Cyber Widget x1` |
+| Demo checkout payment hash | `a60c8807ea5d69425fcd36878261fdb6df7287d770946166ec4eb3a4180893f8` |
+| Demo checkout status | `pending`, expected because the disposable node had 0 channels and no funded payer |
+| Settlement worker | Passed, live worker checked open invoices with 0 errors |
+
+This proves the browser demo can run against a real FNN testnet RPC endpoint and create FNN-backed checkout invoices. It is not a funded payment proof; the funded settlement evidence below remains the payment-completion proof.
+
 ## Funded Live Settlement Result
 
 On July 7, 2026, a disposable two-node Fiber testnet setup completed a funded off-chain payment through public Fiber infrastructure.

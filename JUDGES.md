@@ -162,6 +162,7 @@ During development, the project was verified with:
 - Real sql.js database smoke test for invoice transition behavior.
 - Live demo checkout: invoice `ebbd43bf-6b04-4248-a670-b9476f0bd92d` paid and transaction `987865e5-6d8c-47df-9d8c-ea906598a3b8` promoted to `Succeeded`.
 - Fiber testnet smoke against FNN `v0.8.1`: `node_info`, `list_channels`, optional `new_invoice`, graph sync, and Merchant API live-mode invoice creation passed.
+- Live demo store against FNN testnet: invoice `903492a3-27cc-4927-b19d-2f19496c3c6b` created with payment hash `a60c8807ea5d69425fcd36878261fdb6df7287d770946166ec4eb3a4180893f8` and remained `pending` as expected on an unfunded disposable node.
 - Funded Fiber testnet settlement: payment hash `0xe28512a5139dcd8ce648d6ab8e2a6924f4ce1f64d1ce52a45212689dca859864` reached `Success` for a 1 CKB `Fibt` payment routed through public node1.
 - GitHub Actions container validation: production Compose config with the PostgreSQL profile plus the API Docker image build.
 
