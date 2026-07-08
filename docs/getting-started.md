@@ -64,6 +64,16 @@ Copy that key for the dashboard and SDK examples.
 
 If the dashboard shows `401 Unauthorized` or "Invalid API key", copy the newest `fm_sk_...` value from the API server logs. In demo mode, restarting the API can mint a new key.
 
+## Demo Data Is Disposable
+
+The local demo database lives at `packages/api-server/data/merchant.db`. It is generated when the API starts, ignored by git, and safe to reset:
+
+```bash
+npm run demo:reset
+```
+
+After a reset, restart the API and copy the newly printed `fm_sk_...` key into the dashboard.
+
 ## Test The Local Demo End To End
 
 1. Open http://localhost:3001 and confirm the API index, discovery link, and health link load.
@@ -82,7 +92,9 @@ Demo mode is deterministic and does not require a real Fiber node. It is meant t
 
 | Command | What It Verifies |
 |---|---|
+| `npm run judge:verify` | One-command judge check: demo smoke, tests, lint/type checks, and workspace builds |
 | `npm run demo:smoke` | Local API, invoice lifecycle, signed webhooks, simulated payment, stats, and settlement sweep |
+| `npm run demo:reset` | Deletes generated local demo DB state for a fresh manual run |
 | `npm run test --workspaces --if-present` | Unit and route tests across workspaces |
 | `npm run lint --workspaces --if-present` | TypeScript/lint checks configured by the workspaces |
 | `npm run build --workspaces` | Production builds for API, SDK, dashboard, and demo store |
@@ -211,5 +223,9 @@ Use [deployment.md](deployment.md) for Docker, production env, Fiber RPC failove
 **Demo store asks for no key** - This is expected. The shopper checkout route is public and server-side; it does not expose the merchant API key.
 
 **Cannot connect** - Verify the API server is running on port `3001` and that dashboard/store dev servers are on `5173` and `5174`.
+
+**Port already in use** - Stop the old local process first. To run only one service on another port, use `PORT=3002 npm run dev --workspace=packages/api-server` on macOS/Linux or `$env:PORT=3002; npm run dev --workspace=packages/api-server` in Windows PowerShell. For dashboard/store Vite ports, use `npm run dev --workspace=packages/admin-dashboard -- --port 5175` or `npm run dev --workspace=packages/demo-store -- --port 5176`.
+
+**Demo data looks stale** - Run `npm run demo:reset`, restart the API, and paste the newly printed dashboard key.
 
 **Payments stay pending** - In demo mode, use the payment simulation action. In live FNN mode, pay from a separate funded payer node/channel and keep the settlement worker running.

@@ -164,10 +164,19 @@ In demo mode, the store exposes a payment simulation action so judges can comple
 ## Test And Verification Commands
 
 ```bash
+npm run judge:verify
+```
+
+That command runs the full local judge check: demo smoke, workspace tests, lint/type checks, and workspace builds.
+
+Individual commands:
+
+```bash
 npm run demo:smoke
 npm run test --workspaces --if-present
 npm run lint --workspaces --if-present
 npm run build --workspaces
+npm run demo:reset
 docker compose --profile postgres config
 docker build --target api -t fiber-merchant-kit-api:local .
 ```
@@ -178,6 +187,7 @@ During development, the project was verified with:
 - TypeScript SDK tests.
 - TypeScript checks across API, SDK, dashboard, and demo store.
 - Local demo smoke command, also run in GitHub Actions, covering public discovery, invoice creation, signed webhooks, demo payment simulation, transactions, stats, and settlement sweep.
+- Local demo reset command for clearing generated SQLite state before a fresh review.
 - Python SDK smoke test in this environment.
 - Real sql.js database smoke test for invoice transition behavior.
 - Live demo checkout: invoice `ebbd43bf-6b04-4248-a670-b9476f0bd92d` paid and transaction `987865e5-6d8c-47df-9d8c-ea906598a3b8` promoted to `Succeeded`.

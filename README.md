@@ -136,6 +136,8 @@ The root dev command starts all judge-facing services:
 
 Environment templates are checked in at [.env.example](.env.example) and under each package. The platform scripts copy package templates to `.env` files and load `packages/api-server/.env`; direct `npm run dev` users can export the same variables in their shell.
 
+If one of the default ports is already in use, stop the old local process first or run the affected workspace with a custom port. For the API, use `PORT=3002 npm run dev --workspace=packages/api-server` on macOS/Linux or `$env:PORT=3002; npm run dev --workspace=packages/api-server` in Windows PowerShell. For Vite apps, use `npm run dev --workspace=packages/admin-dashboard -- --port 5175` or `npm run dev --workspace=packages/demo-store -- --port 5176`.
+
 ## API Keys In The Demo
 
 | Surface | Needs `fm_sk_...`? | Why |
@@ -145,6 +147,16 @@ Environment templates are checked in at [.env.example](.env.example) and under e
 | Demo Store / FiberStore shopper checkout | No | Checkout calls a public server-side demo route so shoppers never see the merchant key |
 
 When the API server starts, copy the latest printed `Demo Merchant API Key: fm_sk_...` value and paste it into the dashboard. If the dashboard says the key is invalid, the API server was probably restarted and minted a new demo key; copy the latest one from the server logs.
+
+## Demo Data
+
+Local demo state is stored in `packages/api-server/data/merchant.db`. The file is generated at runtime, ignored by git, and safe to delete when you want a fresh judge run:
+
+```bash
+npm run demo:reset
+```
+
+The next API start recreates the database and prints a fresh demo API key.
 
 ## Local Demo Flow
 
@@ -272,7 +284,9 @@ Useful commands:
 
 | Command | What It Verifies |
 |---|---|
+| `npm run judge:verify` | One-command judge check: demo smoke, tests, lint/type checks, and workspace builds |
 | `npm run demo:smoke` | Local end-to-end API, invoice, signed webhook, simulated payment, stats, and settlement sweep |
+| `npm run demo:reset` | Removes local generated demo DB state before a fresh manual run |
 | `npm run test --workspaces --if-present` | Unit and route tests across workspaces |
 | `npm run lint --workspaces --if-present` | Lint checks |
 | `npm run build --workspaces` | TypeScript builds for API, SDK, dashboard, and demo store |

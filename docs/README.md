@@ -34,3 +34,5 @@ Start here if you are reviewing Fiber Merchant Kit from the `docs/` folder.
 | Can judges run without a Fiber node? | Yes. Demo mode runs the full merchant workflow locally. |
 | Can it touch real FNN testnet? | Yes. Configure `FIBER_NODE_RPC_URL` and follow [testnet-smoke.md](testnet-smoke.md). |
 | What does funded settlement require? | A separate funded payer node/channel, not just invoice creation. |
+| Is demo data committed? | No. `packages/api-server/data/merchant.db` is generated locally and can be reset with `npm run demo:reset`. |
+| Is there a one-command check? | Yes. Run `npm run judge:verify`. |

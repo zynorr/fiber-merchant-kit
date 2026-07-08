@@ -15,6 +15,8 @@
     "start": "npm run start -w packages/api-server",
     "test": "npm run test --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
+    "judge:verify": "npm run demo:smoke && npm run test --workspaces --if-present && npm run lint --workspaces --if-present && npm run build --workspaces",
+    "demo:reset": "node scripts/reset-demo-db.mjs",
     "demo:smoke": "npm run demo:smoke -w packages/api-server",
     "testnet:smoke": "npm run testnet:smoke -w packages/api-server"
   },
