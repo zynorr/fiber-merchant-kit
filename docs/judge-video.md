@@ -6,7 +6,7 @@ Watch or download the polished competition walkthrough:
 
 <video src="assets/fiber-merchant-kit-project-run-3-minute.mp4" controls width="100%"></video>
 
-This video is intentionally focused on the project, not only the UI demo. It shows what Fiber Merchant Kit solves, how the repository is structured, the terminal path judges can follow on a fresh laptop, and how to verify the implementation before reviewing the hosted demo.
+This video is intentionally focused on the project, not only the UI demo. It shows what Fiber Merchant Kit solves, how the repository is structured, the terminal path judges can follow for a clean local setup, and how to verify the implementation before reviewing the hosted demo.
 
 ## What It Covers
 
