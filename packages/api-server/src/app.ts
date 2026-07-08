@@ -10,7 +10,7 @@
  */
 
 import express from 'express';
-import cors from 'cors';
+import cors, { type CorsOptions } from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import { authMiddleware } from './middleware/auth';
@@ -26,6 +26,22 @@ const VERSION = '1.0.0';
 function getRuntimeMode() {
   const rpcUrl = process.env.FIBER_NODE_RPC_URL;
   return !rpcUrl || rpcUrl === 'demo' ? 'demo' : 'live';
+}
+
+function getCorsOrigin(): CorsOptions['origin'] {
+  const configured = process.env.CORS_ORIGIN?.trim();
+  if (!configured || configured === '*') return '*';
+
+  const allowed = configured
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
+  if (allowed.length === 1) return allowed[0];
+
+  return (origin, callback) => {
+    callback(null, !origin || allowed.includes(origin));
+  };
 }
 
 function getDiscoveryPayload() {
@@ -80,7 +96,7 @@ export function createApp() {
 
   app.use(helmet());
   app.use(cors({
-    origin: process.env.CORS_ORIGIN || '*',
+    origin: getCorsOrigin(),
     methods: ['GET', 'POST', 'PATCH', 'DELETE'],
     allowedHeaders: ['Content-Type', 'Authorization'],
   }));

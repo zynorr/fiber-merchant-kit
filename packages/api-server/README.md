@@ -32,7 +32,7 @@ Copy `.env.example` to `.env` when using the platform start scripts. If you run 
 | WEBHOOK_DELIVERY_WORKER | true | Set `false` to disable the durable webhook delivery queue worker |
 | WEBHOOK_DELIVERY_WORKER_INTERVAL_MS | 5000 | Webhook queue polling interval in milliseconds |
 | WEBHOOK_DELIVERY_WORKER_BATCH_SIZE | 25 | Maximum due webhook deliveries processed per worker tick |
-| CORS_ORIGIN | * | Allowed CORS origin |
+| CORS_ORIGIN | * | Allowed CORS origin. Use comma-separated origins for split dashboard/store hosting |
 | FIBER_DB_ENGINE | sqlite | Database engine selector. `sqlite` is the verified local/runtime default; `postgres` requires `DATABASE_URL` and the production schema path. |
 | FIBER_MERCHANT_DB_PATH | ./data/merchant.db | SQLite database path |
 | DATABASE_URL | - | PostgreSQL connection URL when deploying a Postgres-backed adapter |

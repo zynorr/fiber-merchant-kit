@@ -68,6 +68,12 @@ interface CartItem {
 type Step = 'cart' | 'payment' | 'confirming' | 'success' | 'error';
 type ApiMode = 'checking' | 'demo' | 'live' | 'offline';
 
+const API_BASE_URL = (import.meta.env.VITE_MERCHANT_API_URL || '').replace(/\/+$/, '');
+
+function apiUrl(path: string) {
+  return `${API_BASE_URL}${path}`;
+}
+
 function formatCkb(amount: number) {
   return (amount / 1e8).toFixed(6);
 }
@@ -95,7 +101,7 @@ export default function App() {
 
   useEffect(() => {
     let alive = true;
-    fetch('/api/v1/health')
+    fetch(apiUrl('/api/v1/health'))
       .then((res) => res.json())
       .then((health) => {
         if (!alive) return;
@@ -173,7 +179,7 @@ export default function App() {
   };
 
   const fetchInvoiceStatus = async (id: string) => {
-    const res = await fetch(`/api/v1/demo-store/invoices/${id}`);
+    const res = await fetch(apiUrl(`/api/v1/demo-store/invoices/${id}`));
     if (!res.ok) throw new Error('Unable to refresh invoice status');
     return res.json();
   };
@@ -236,7 +242,7 @@ export default function App() {
     setCheckoutTotalCkb(totalAmountCkb);
 
     try {
-      const response = await fetch('/api/v1/demo-store/checkout', {
+      const response = await fetch(apiUrl('/api/v1/demo-store/checkout'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -273,7 +279,7 @@ export default function App() {
     setErrorMsg('');
 
     try {
-      const response = await fetch(`/api/v1/demo-store/invoices/${invoiceId}/simulate-payment`, {
+      const response = await fetch(apiUrl(`/api/v1/demo-store/invoices/${invoiceId}/simulate-payment`), {
         method: 'POST',
       });
       if (!response.ok) {

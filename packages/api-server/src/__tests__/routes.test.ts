@@ -160,6 +160,30 @@ describe('API Routes', () => {
       expect(res.status).toBe(200);
       expect(res.body.mode).toBe('live');
     });
+
+    it('allows comma-separated CORS origins for split frontend hosting', async () => {
+      vi.stubEnv('CORS_ORIGIN', 'https://dashboard.example.com, https://store.example.com');
+      app = createApp();
+
+      const res = await request(app)
+        .get('/api/v1/health')
+        .set('Origin', 'https://store.example.com');
+
+      expect(res.status).toBe(200);
+      expect(res.headers['access-control-allow-origin']).toBe('https://store.example.com');
+    });
+
+    it('omits CORS headers for unlisted origins when origins are restricted', async () => {
+      vi.stubEnv('CORS_ORIGIN', 'https://dashboard.example.com, https://store.example.com');
+      app = createApp();
+
+      const res = await request(app)
+        .get('/api/v1/health')
+        .set('Origin', 'https://unknown.example.com');
+
+      expect(res.status).toBe(200);
+      expect(res.headers['access-control-allow-origin']).toBeUndefined();
+    });
   });
 
   // ── Health ─────────────────────────────────────────────────
