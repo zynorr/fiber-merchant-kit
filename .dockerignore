@@ -1,0 +1,10 @@
+.git
+.github
+node_modules
+packages/*/node_modules
+packages/*/dist
+packages/*/data
+coverage
+.env
+packages/*/.env
+npm-debug.log*

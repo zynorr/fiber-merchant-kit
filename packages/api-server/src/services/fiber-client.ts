@@ -12,6 +12,7 @@ type JsonRecord = Record<string, unknown>;
 
 export interface FiberNodeConfig {
   rpcUrl: string;
+  rpcUrls?: string[];
   rpcUser?: string;
   rpcPassword?: string;
   rpcAuthToken?: string;
@@ -121,10 +122,14 @@ function normalizeInvoiceStatus(status?: string): string {
 export class FiberNodeClient {
   private config: FiberNodeConfig;
   private isDemo: boolean;
+  private rpcUrls: string[];
 
   constructor(config: FiberNodeConfig) {
     this.config = config;
-    this.isDemo = !config.rpcUrl || config.rpcUrl === 'demo';
+    this.rpcUrls = (config.rpcUrls && config.rpcUrls.length > 0 ? config.rpcUrls : [config.rpcUrl])
+      .map((url) => url.trim())
+      .filter(Boolean);
+    this.isDemo = this.rpcUrls.length === 0 || this.rpcUrls[0] === 'demo';
   }
 
   /**
@@ -310,25 +315,36 @@ export class FiberNodeClient {
       headers.Authorization = `Basic ${auth}`;
     }
 
-    const response = await fetch(this.config.rpcUrl, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(body),
-    });
+    const errors: string[] = [];
 
-    if (!response.ok) {
-      throw new Error(`Fiber RPC error: ${response.status} ${response.statusText}`);
+    for (const rpcUrl of this.rpcUrls) {
+      try {
+        const response = await fetch(rpcUrl, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(body),
+        });
+
+        if (!response.ok) {
+          errors.push(`${rpcUrl}: HTTP ${response.status} ${response.statusText}`);
+          continue;
+        }
+
+        const json = (await response.json()) as RpcResponse<T>;
+        if (json.error) {
+          const message = typeof json.error === 'string'
+            ? json.error
+            : json.error.message || JSON.stringify(json.error);
+          throw new Error(`Fiber RPC error: ${message}`);
+        }
+
+        return json.result as T;
+      } catch (err: unknown) {
+        errors.push(`${rpcUrl}: ${err instanceof Error ? err.message : String(err)}`);
+      }
     }
 
-    const json = (await response.json()) as RpcResponse<T>;
-    if (json.error) {
-      const message = typeof json.error === 'string'
-        ? json.error
-        : json.error.message || JSON.stringify(json.error);
-      throw new Error(`Fiber RPC error: ${message}`);
-    }
-
-    return json.result as T;
+    throw new Error(`Fiber RPC unavailable across ${this.rpcUrls.length} endpoint(s): ${errors.join('; ')}`);
   }
 
   private _demoCreateInvoice(params: { amount: string; currency: string; description?: string }): InvoiceResult {

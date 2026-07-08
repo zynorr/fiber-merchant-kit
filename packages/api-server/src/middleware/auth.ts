@@ -7,10 +7,27 @@
 
 import { Request, Response, NextFunction } from 'express';
 import { findMerchantByApiKey } from '../db';
+import type { MerchantRole } from '../db/types';
 
 export interface AuthenticatedRequest extends Request {
   merchantId?: string;
+  merchantRole?: MerchantRole;
+  merchantLabel?: string | null;
 }
+
+const ROLE_RANK: Record<MerchantRole, number> = {
+  viewer: 1,
+  developer: 2,
+  admin: 3,
+  owner: 4,
+};
+
+export const ROLE_PERMISSIONS: Record<MerchantRole, string[]> = {
+  owner: ['read', 'write', 'manage_webhooks', 'manage_keys', 'manage_users', 'run_settlement'],
+  admin: ['read', 'write', 'manage_webhooks', 'manage_keys', 'manage_users', 'run_settlement'],
+  developer: ['read', 'write', 'manage_webhooks', 'run_settlement'],
+  viewer: ['read'],
+};
 
 export function authMiddleware(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
   const authHeader = req.headers.authorization;
@@ -35,5 +52,19 @@ export function authMiddleware(req: AuthenticatedRequest, res: Response, next: N
   }
 
   req.merchantId = merchant.id as string;
+  req.merchantRole = (merchant.role || 'owner') as MerchantRole;
+  req.merchantLabel = merchant.label;
   next();
+}
+
+export function requireRole(roles: MerchantRole[]) {
+  const minimum = Math.min(...roles.map((role) => ROLE_RANK[role]));
+  return (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
+    const role = req.merchantRole || 'viewer';
+    if (ROLE_RANK[role] < minimum) {
+      res.status(403).json({ error: 'Insufficient role for this operation' });
+      return;
+    }
+    next();
+  };
 }

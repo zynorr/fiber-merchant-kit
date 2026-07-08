@@ -193,6 +193,39 @@ export default function FiberPage({ client }: FiberPageProps) {
 
       <Card>
         <CardHeader>
+          <CardTitle>RPC Endpoints</CardTitle>
+          <Badge variant={status.rpcEndpoints.some((endpoint) => endpoint.reachable) ? 'success' : 'warning'}>
+            {status.rpcEndpoints.filter((endpoint) => endpoint.reachable).length}/{status.rpcEndpoints.length} reachable
+          </Badge>
+        </CardHeader>
+        <div className="space-y-3">
+          {status.rpcEndpoints.map((endpoint) => (
+            <div
+              key={endpoint.url}
+              className="flex flex-col gap-2 rounded-lg border border-gray-100 bg-gray-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+            >
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <Badge variant={endpoint.reachable ? 'success' : 'danger'} size="sm">
+                    {endpoint.reachable ? 'Reachable' : 'Offline'}
+                  </Badge>
+                  <span className="truncate font-mono text-xs text-gray-600">{endpoint.url}</span>
+                </div>
+                {endpoint.error && (
+                  <p className="mt-1 truncate text-xs text-red-500">{endpoint.error}</p>
+                )}
+              </div>
+              <div className="text-left text-xs text-gray-400 sm:text-right">
+                <p>{shortId(endpoint.nodeId, 10, 4)}</p>
+                <p>{endpoint.version || status.currency}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle>Settlement Activity</CardTitle>
           <Badge variant={status.worker.running ? 'warning' : 'default'}>
             {status.worker.running ? 'Running' : 'Idle'}

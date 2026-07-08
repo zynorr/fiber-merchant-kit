@@ -9,7 +9,7 @@ Fiber Merchant Kit turns low-level Fiber Network Node RPC into merchant-grade pa
 - A REST API for invoices, refunds, transactions, channel balances, stats, and webhooks.
 - A durable local database for merchant state.
 - A webhook delivery engine with HMAC signatures, SQLite-backed retry state, delivery logs, and manual replay.
-- A live-mode settlement worker plus admin network status view for operating real Fiber nodes.
+- A live-mode settlement worker plus admin network status view for operating real Fiber nodes with failover visibility.
 - Admin and demo frontends for operating and demonstrating the flow.
 - TypeScript and Python SDKs for application integration.
 
@@ -47,7 +47,7 @@ flowchart LR
 
 | Component | Owns | Does Not Own | Key Files |
 |---|---|---|---|
-| API Server | Auth, validation, invoice lifecycle, DB writes, Fiber RPC calls, settlement worker, webhook dispatch | Browser UI state | `packages/api-server/src/routes/*`, `packages/api-server/src/db/index.ts`, `packages/api-server/src/services/invoice-settlement.ts`, `packages/api-server/src/services/webhook-delivery.ts` |
+| API Server | Auth, role context, validation, invoice lifecycle, DB writes, Fiber RPC calls, settlement worker, webhook dispatch | Browser UI state | `packages/api-server/src/routes/*`, `packages/api-server/src/db/index.ts`, `packages/api-server/src/services/invoice-settlement.ts`, `packages/api-server/src/services/webhook-delivery.ts` |
 | SQLite Layer | Merchant, invoice, webhook, delivery, transaction persistence | Business decisions outside DB helpers | `packages/api-server/src/db/schema.ts`, `packages/api-server/src/db/index.ts` |
 | Fiber Client | Fiber node RPC abstraction and demo-mode simulation | Merchant auth or webhooks | `packages/api-server/src/services/fiber-client.ts`, `packages/api-server/src/lib/fiber-client.ts` |
 | Admin Dashboard | Merchant operations workflow | Payment truth or secret storage | `packages/admin-dashboard/src/pages/*` |
@@ -183,6 +183,7 @@ Why this matters: webhook failures are visible, retried, and replayable. The das
 | Table | Purpose |
 |---|---|
 | `merchants` | API key identity and merchant metadata |
+| `merchant_users` | Production-facing user/role identities attached to a merchant |
 | `invoices` | Payment requests, Fiber payment hash, invoice address, status timestamps |
 | `transactions` | Incoming/outgoing payment history connected to invoices |
 | `webhooks` | Registered merchant webhook endpoints and event subscriptions |
@@ -207,6 +208,7 @@ This keeps SQLite simple while giving JS and Python clients a predictable public
 | Concern | Design |
 |---|---|
 | API access | Bearer API keys with `fm_sk_` prefix |
+| Role context | API keys carry `owner`, `admin`, `developer`, or `viewer` role metadata |
 | Fiber RPC credentials | Server-side only, never exposed to dashboard/store |
 | Request validation | Zod schemas at route boundaries |
 | Webhook authenticity | HMAC-SHA256 signature in `X-Fiber-Signature` |
@@ -222,6 +224,7 @@ This keeps SQLite simple while giving JS and Python clients a predictable public
 | Idempotency key conflict detection | Reused checkout keys must match the original request body before replaying an invoice |
 | Promote pending incoming transaction | Keeps one canonical transaction for one invoice payment |
 | SQLite-backed webhook outbox | Failed webhook attempts survive process restarts and can be resumed by the worker |
+| Worker status and manual run endpoints | Operators can see queue health and force one due-delivery tick during incident response |
 | Retry webhook non-2xx responses | HTTP 500 is a delivery failure, not a successful attempt |
 | Replay webhook deliveries as new rows | Operators need a clean audit trail when re-sending a failed event |
 | Background settlement worker | Live-mode invoices can settle without a user opening each invoice |
@@ -232,7 +235,7 @@ This keeps SQLite simple while giving JS and Python clients a predictable public
 
 | Capability | Demo Mode | Production Mode |
 |---|---|---|
-| Fiber RPC | Simulated in process | Real `FIBER_NODE_RPC_URL` |
+| Fiber RPC | Simulated in process | Real `FIBER_NODE_RPC_URL` or failover `FIBER_NODE_RPC_URLS` |
 | Invoice creation | Fake payment hashes and addresses | Fiber node invoice RPC |
 | Payment status | Randomized status simulation | Fiber node status polling |
 | Channels | Sample balances | Real channel list |
@@ -248,10 +251,12 @@ Judges can inspect these files to validate the architecture:
 
 | Question | Where To Look |
 |---|---|
-| How is authentication enforced? | `packages/api-server/src/middleware/auth.ts` |
+| How is authentication and role context enforced? | `packages/api-server/src/middleware/auth.ts`, `packages/api-server/src/routes/merchant.ts` |
 | How are invoice state transitions handled? | `packages/api-server/src/services/invoice-settlement.ts`, `packages/api-server/src/db/index.ts` |
 | How does background reconciliation run? | `packages/api-server/src/services/settlement-worker.ts`, `packages/api-server/src/index.ts` |
 | How are webhook retries implemented? | `packages/api-server/src/services/webhook-delivery.ts` |
+| How is Fiber RPC failover configured? | `packages/api-server/src/lib/fiber-client.ts`, `packages/api-server/src/services/fiber-client.ts` |
+| How is the production deployment path documented? | `docs/deployment.md`, `docs/postgres-schema.sql`, `Dockerfile`, `docker-compose.yml` |
 | How are API inputs validated? | `packages/api-server/src/validation.ts` |
 | How do we smoke-test a real Fiber testnet node? | `docs/testnet-smoke.md`, `packages/api-server/src/scripts/testnet-smoke.ts` |
 | How do SDKs map to API endpoints? | `packages/sdk-typescript/src/client.ts`, `packages/sdk-python/src/fiber_merchant/client.py` |
@@ -262,10 +267,10 @@ Judges can inspect these files to validate the architecture:
 
 | Tradeoff | Why It Was Acceptable For Hackathon | Production Path |
 |---|---|---|
-| SQLite/sql.js instead of hosted DB | Zero-config setup and easy judging | PostgreSQL adapter |
+| SQLite/sql.js instead of hosted DB | Zero-config setup and easy judging | PostgreSQL schema and adapter deployment path |
 | In-process settlement worker | Easy to inspect and enough for one API server | Durable queue worker for multi-instance deployments |
 | SQLite webhook outbox with in-process worker | Easy to inspect and enough for one API server | External queue workers and scheduling for multi-instance deployments |
-| Single API key auth model | Fits demo merchant workflow | Merchant users, teams, RBAC |
+| Role-bearing API key auth model | Fits demo merchant workflow | Merchant users, teams, richer RBAC, and audit logs |
 | Demo Fiber client | Makes the project runnable by anyone | Real Fiber node deployment |
 
 ## Why This Architecture Fits The Problem

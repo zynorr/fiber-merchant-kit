@@ -36,6 +36,8 @@ const mockDb = vi.hoisted(() => ({
   getMerchantStats: vi.fn(),
   getRevenueHistory: vi.fn(),
   getInvoiceByPaymentHash: vi.fn(),
+  listMerchantUsers: vi.fn(),
+  rotateMerchantApiKey: vi.fn(),
   seedDemoMerchant: vi.fn(),
   initDatabase: vi.fn(),
   closeDb: vi.fn(),
@@ -52,11 +54,20 @@ const mockFiberClient = vi.hoisted(() => ({
 
 const mockWebhookDeliveryService = vi.hoisted(() => ({
   dispatchWebhookEvent: vi.fn(),
+  getWebhookDeliveryWorkerConfig: vi.fn(),
+  processWebhookDeliveryQueue: vi.fn(),
   replayWebhookDelivery: vi.fn(),
 }));
 
 vi.mock('../db', () => mockDb);
 vi.mock('../lib/fiber-client', () => ({
+  getConfiguredFiberRpcUrls: () => {
+    const urls = process.env.FIBER_NODE_RPC_URLS
+      ?.split(',')
+      .map((url) => url.trim())
+      .filter(Boolean);
+    return urls && urls.length > 0 ? urls : [process.env.FIBER_NODE_RPC_URL || 'demo'];
+  },
   getFiberClient: () => mockFiberClient,
 }));
 vi.mock('../services/fiber-client', () => ({
@@ -71,6 +82,7 @@ const DEMO_MERCHANT: DbMerchant = {
   id: 'merchant-1',
   api_key: API_KEY,
   label: 'Test Merchant',
+  role: 'owner',
   active: 1,
   created_at: '2026-01-01T00:00:00Z',
   last_used_at: null,
@@ -85,6 +97,23 @@ describe('API Routes', () => {
     vi.clearAllMocks();
     app = createApp();
     mockDb.findMerchantByApiKey.mockReturnValue(DEMO_MERCHANT);
+    mockDb.listMerchantUsers.mockReturnValue([]);
+    mockWebhookDeliveryService.getWebhookDeliveryWorkerConfig.mockReturnValue({
+      enabled: true,
+      active: true,
+      running: false,
+      intervalMs: 5000,
+      batchSize: 25,
+      maxRetries: 5,
+    });
+    mockWebhookDeliveryService.processWebhookDeliveryQueue.mockResolvedValue({
+      checked: 0,
+      delivered: 0,
+      rescheduled: 0,
+      failed: 0,
+      skipped: 0,
+      errors: 0,
+    });
     mockFiberClient.getNodeInfo.mockResolvedValue({
       node_id: 'demo-node',
       version: '0.1.0',
@@ -194,6 +223,56 @@ describe('API Routes', () => {
         .set('Authorization', `Bearer fm_sk_nonexistent_key`);
       expect(res.status).toBe(401);
       expect(res.body.error).toMatch(/invalid|inactive/i);
+    });
+
+    it('returns authenticated merchant context and permissions', async () => {
+      mockDb.listMerchantUsers.mockReturnValue([
+        {
+          id: 'user-1',
+          merchant_id: 'merchant-1',
+          email: 'owner@example.com',
+          name: 'Owner',
+          role: 'owner',
+          active: 1,
+          created_at: '2026-07-08T12:00:00Z',
+        },
+      ]);
+
+      const res = await request(app)
+        .get('/api/v1/auth/me')
+        .set('Authorization', `Bearer ${API_KEY}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.merchantId).toBe('merchant-1');
+      expect(res.body.role).toBe('owner');
+      expect(res.body.permissions).toContain('manage_keys');
+      expect(res.body.users[0].email).toBe('owner@example.com');
+    });
+
+    it('rotates the merchant API key for admin roles', async () => {
+      mockDb.rotateMerchantApiKey.mockReturnValue({
+        ...DEMO_MERCHANT,
+        api_key: 'fm_sk_rotated_key',
+      });
+
+      const res = await request(app)
+        .post('/api/v1/auth/api-key/rotate')
+        .set('Authorization', `Bearer ${API_KEY}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.apiKey).toBe('fm_sk_rotated_key');
+      expect(mockDb.rotateMerchantApiKey).toHaveBeenCalledWith('merchant-1');
+    });
+
+    it('blocks API key rotation for viewer roles', async () => {
+      mockDb.findMerchantByApiKey.mockReturnValue({ ...DEMO_MERCHANT, role: 'viewer' });
+
+      const res = await request(app)
+        .post('/api/v1/auth/api-key/rotate')
+        .set('Authorization', `Bearer ${API_KEY}`);
+
+      expect(res.status).toBe(403);
+      expect(mockDb.rotateMerchantApiKey).not.toHaveBeenCalled();
     });
   });
 
@@ -632,6 +711,39 @@ describe('API Routes', () => {
       });
     });
 
+    describe('Webhook delivery worker routes', () => {
+      it('returns webhook delivery worker status', async () => {
+        const res = await request(app)
+          .get('/api/v1/webhooks/delivery-worker/status')
+          .set('Authorization', `Bearer ${API_KEY}`);
+
+        expect(res.status).toBe(200);
+        expect(res.body.enabled).toBe(true);
+        expect(res.body.maxRetries).toBe(5);
+      });
+
+      it('runs one webhook delivery queue tick', async () => {
+        mockWebhookDeliveryService.processWebhookDeliveryQueue.mockResolvedValue({
+          checked: 2,
+          delivered: 1,
+          rescheduled: 1,
+          failed: 0,
+          skipped: 0,
+          errors: 0,
+        });
+
+        const res = await request(app)
+          .post('/api/v1/webhooks/delivery-worker/run')
+          .set('Authorization', `Bearer ${API_KEY}`)
+          .send({ limit: 2 });
+
+        expect(res.status).toBe(200);
+        expect(res.body.trigger).toBe('manual');
+        expect(res.body.summary.checked).toBe(2);
+        expect(mockWebhookDeliveryService.processWebhookDeliveryQueue).toHaveBeenCalledWith({ limit: 2 });
+      });
+    });
+
     describe('GET /api/v1/webhooks/:id', () => {
       it('returns a webhook by id', async () => {
         mockDb.getWebhook.mockReturnValue(mockWebhook);
@@ -876,6 +988,7 @@ describe('API Routes', () => {
     describe('GET /api/v1/fiber/status', () => {
       it('returns live node, channel, and worker status', async () => {
         vi.stubEnv('FIBER_NODE_RPC_URL', 'http://localhost:8227');
+        vi.stubEnv('FIBER_NODE_RPC_URLS', 'http://localhost:8227,http://localhost:8228');
         mockFiberClient.getNodeInfo.mockResolvedValue({
           node_id: '02node',
           version: '0.6.0',
@@ -907,6 +1020,8 @@ describe('API Routes', () => {
         expect(res.body.channels.ready).toBe(1);
         expect(res.body.channels.localBalance).toBe('700000');
         expect(res.body.worker.enabled).toBe(true);
+        expect(res.body.rpcEndpoints).toHaveLength(2);
+        expect(res.body.rpcEndpoints[0].reachable).toBe(true);
       });
 
       it('returns degraded Fiber status when the node is unreachable', async () => {

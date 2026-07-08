@@ -33,7 +33,10 @@ Copy `.env.example` to `.env` when using the platform start scripts. If you run 
 | WEBHOOK_DELIVERY_WORKER_INTERVAL_MS | 5000 | Webhook queue polling interval in milliseconds |
 | WEBHOOK_DELIVERY_WORKER_BATCH_SIZE | 25 | Maximum due webhook deliveries processed per worker tick |
 | CORS_ORIGIN | * | Allowed CORS origin |
+| FIBER_DB_ENGINE | sqlite | Database engine selector. `sqlite` is the verified local/runtime default; `postgres` requires `DATABASE_URL` and the production schema path. |
 | FIBER_MERCHANT_DB_PATH | ./data/merchant.db | SQLite database path |
+| DATABASE_URL | - | PostgreSQL connection URL when deploying a Postgres-backed adapter |
+| FIBER_NODE_RPC_URLS | - | Optional comma-separated Fiber RPC failover URLs. Takes precedence over `FIBER_NODE_RPC_URL`. |
 
 ## Fiber Testnet Smoke
 
@@ -50,6 +53,10 @@ This checks `node_info` and `list_channels` without side effects. Set `FIBER_TES
 All authenticated endpoints require `Authorization: Bearer fm_sk_...` header.
 Full human reference: `../../docs/api-reference.md`. Machine-readable OpenAPI contract: `../../docs/openapi.json`.
 
+### Auth
+- `GET /api/v1/auth/me` — Current merchant role, permissions, and active users
+- `POST /api/v1/auth/api-key/rotate` — Rotate the current merchant API key
+
 ### Invoices
 - `POST /api/v1/invoices` — Create invoice
 - `GET /api/v1/invoices` — List invoices  
@@ -64,6 +71,8 @@ Full human reference: `../../docs/api-reference.md`. Machine-readable OpenAPI co
 - `PATCH /api/v1/webhooks/:id` — Update webhook
 - `DELETE /api/v1/webhooks/:id` — Delete webhook
 - `GET /api/v1/webhooks/:id/deliveries` — Delivery logs
+- `GET /api/v1/webhooks/delivery-worker/status` — Durable delivery queue worker status
+- `POST /api/v1/webhooks/delivery-worker/run` — Run one due-delivery queue tick
 - `POST /api/v1/webhooks/:id/test` — Send test event
 
 ### Balance & Stats

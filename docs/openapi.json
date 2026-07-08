@@ -17,6 +17,10 @@
       "description": "Public server discovery and health endpoints"
     },
     {
+      "name": "Auth",
+      "description": "Authenticated merchant context, permissions, and API key operations"
+    },
+    {
       "name": "Invoices",
       "description": "Merchant invoice lifecycle"
     },
@@ -95,6 +99,63 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/me": {
+      "get": {
+        "tags": ["Auth"],
+        "summary": "Get authenticated merchant context",
+        "operationId": "getAuthContext",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authenticated merchant context and permissions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MerchantAuthContext"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/api-key/rotate": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Rotate the current merchant API key",
+        "operationId": "rotateApiKey",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Replacement API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiKeyRotationResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
           }
         }
       }
@@ -465,6 +526,80 @@
                 }
               }
             }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/v1/webhooks/delivery-worker/status": {
+      "get": {
+        "tags": ["Webhooks"],
+        "summary": "Get durable webhook delivery worker status",
+        "operationId": "getWebhookDeliveryWorkerStatus",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Webhook delivery worker status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebhookDeliveryWorkerStatus"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/v1/webhooks/delivery-worker/run": {
+      "post": {
+        "tags": ["Webhooks"],
+        "summary": "Run one durable webhook delivery queue tick",
+        "operationId": "runWebhookDeliveryWorker",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "limit": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Queue tick summary",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebhookDeliveryRun"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
@@ -1035,6 +1170,16 @@
           }
         }
       },
+      "Forbidden": {
+        "description": "Authenticated API key does not have the required role",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
       "BadRequest": {
         "description": "Bad request",
         "content": {
@@ -1171,6 +1316,87 @@
           },
           "channels": {
             "type": "integer"
+          }
+        }
+      },
+      "MerchantRole": {
+        "type": "string",
+        "enum": ["owner", "admin", "developer", "viewer"]
+      },
+      "MerchantUser": {
+        "type": "object",
+        "required": ["id", "merchantId", "email", "role", "active", "createdAt"],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "merchantId": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "role": {
+            "$ref": "#/components/schemas/MerchantRole"
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "MerchantAuthContext": {
+        "type": "object",
+        "required": ["merchantId", "role", "permissions", "users"],
+        "properties": {
+          "merchantId": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string",
+            "nullable": true
+          },
+          "role": {
+            "$ref": "#/components/schemas/MerchantRole"
+          },
+          "permissions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "users": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MerchantUser"
+            }
+          }
+        }
+      },
+      "ApiKeyRotationResponse": {
+        "type": "object",
+        "required": ["merchantId", "apiKey", "role", "rotatedAt"],
+        "properties": {
+          "merchantId": {
+            "type": "string"
+          },
+          "apiKey": {
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/components/schemas/MerchantRole"
+          },
+          "rotatedAt": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       },
@@ -1474,6 +1700,89 @@
           }
         }
       },
+      "WebhookDeliveryQueueSummary": {
+        "type": "object",
+        "required": ["checked", "delivered", "rescheduled", "failed", "skipped", "errors"],
+        "properties": {
+          "checked": {
+            "type": "integer"
+          },
+          "delivered": {
+            "type": "integer"
+          },
+          "rescheduled": {
+            "type": "integer"
+          },
+          "failed": {
+            "type": "integer"
+          },
+          "skipped": {
+            "type": "integer"
+          },
+          "errors": {
+            "type": "integer"
+          }
+        }
+      },
+      "WebhookDeliveryWorkerStatus": {
+        "type": "object",
+        "required": ["enabled", "active", "running", "intervalMs", "batchSize", "maxRetries"],
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "running": {
+            "type": "boolean"
+          },
+          "intervalMs": {
+            "type": "integer"
+          },
+          "batchSize": {
+            "type": "integer"
+          },
+          "maxRetries": {
+            "type": "integer"
+          },
+          "lastRunAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lastSuccessAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lastError": {
+            "type": "string"
+          },
+          "lastSummary": {
+            "$ref": "#/components/schemas/WebhookDeliveryQueueSummary"
+          }
+        }
+      },
+      "WebhookDeliveryRun": {
+        "type": "object",
+        "required": ["trigger", "startedAt", "finishedAt", "summary"],
+        "properties": {
+          "trigger": {
+            "type": "string",
+            "enum": ["manual"]
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "finishedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/WebhookDeliveryQueueSummary"
+          }
+        }
+      },
       "Transaction": {
         "type": "object",
         "required": ["id", "paymentHash", "direction", "amount", "currency", "status", "createdAt"],
@@ -1637,7 +1946,7 @@
       },
       "FiberStatus": {
         "type": "object",
-        "required": ["mode", "reachable", "node", "channels", "worker"],
+        "required": ["mode", "reachable", "rpcUrlConfigured", "rpcEndpoints", "node", "channels", "worker"],
         "properties": {
           "mode": {
             "type": "string",
@@ -1645,6 +1954,15 @@
           },
           "reachable": {
             "type": "boolean"
+          },
+          "rpcUrlConfigured": {
+            "type": "boolean"
+          },
+          "rpcEndpoints": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FiberRpcEndpointStatus"
+            }
           },
           "node": {
             "nullable": true,
@@ -1660,9 +1978,26 @@
           "worker": {
             "$ref": "#/components/schemas/SettlementWorkerStatus"
           },
-          "config": {
-            "type": "object",
-            "additionalProperties": true
+          "error": {
+            "type": "string"
+          }
+        }
+      },
+      "FiberRpcEndpointStatus": {
+        "type": "object",
+        "required": ["url", "reachable"],
+        "properties": {
+          "url": {
+            "type": "string"
+          },
+          "reachable": {
+            "type": "boolean"
+          },
+          "nodeId": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
           },
           "error": {
             "type": "string"
@@ -1692,7 +2027,7 @@
       },
       "FiberChannelStatus": {
         "type": "object",
-        "required": ["total", "ready", "pending", "localBalance", "remoteBalance", "capacity"],
+        "required": ["total", "ready", "pending", "failed", "localBalance", "remoteBalance", "totalCapacity", "items"],
         "properties": {
           "total": {
             "type": "integer"
@@ -1703,19 +2038,22 @@
           "pending": {
             "type": "integer"
           },
+          "failed": {
+            "type": "integer"
+          },
           "localBalance": {
             "type": "string"
           },
           "remoteBalance": {
             "type": "string"
           },
-          "capacity": {
+          "totalCapacity": {
             "type": "string"
           },
-          "assets": {
+          "items": {
             "type": "array",
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/ChannelBalance"
             }
           }
         }

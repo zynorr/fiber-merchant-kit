@@ -47,7 +47,11 @@ function getDiscoveryPayload() {
     ],
     authenticatedResources: [
       'invoices',
+      'auth/me',
+      'auth/api-key/rotate',
       'webhooks',
+      'webhooks/delivery-worker/status',
+      'webhooks/delivery-worker/run',
       'transactions',
       'balance',
       'stats',

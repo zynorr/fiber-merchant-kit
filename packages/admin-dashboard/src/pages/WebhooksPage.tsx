@@ -1,14 +1,22 @@
 import { useEffect, useState } from 'react';
-import { MerchantClient, WebhookDelivery, WebhookEndpoint } from '@fiber-merchant/sdk';
+import {
+  MerchantClient,
+  WebhookDelivery,
+  WebhookDeliveryWorkerStatus,
+  WebhookEndpoint,
+} from '@fiber-merchant/sdk';
 import {
   Activity,
+  AlertTriangle,
   Check,
   Clipboard,
+  Clock3,
   Eye,
   EyeOff,
   FileJson,
   Loader2,
   Plus,
+  PlayCircle,
   RefreshCw,
   RotateCcw,
   Send,
@@ -47,15 +55,40 @@ function formatPayload(payload: unknown): string {
   }
 }
 
+function formatDateTime(value?: string | null): string {
+  return value ? new Date(value).toLocaleString() : 'None scheduled';
+}
+
+function formatInterval(ms: number): string {
+  if (ms < 1000) return `${ms}ms`;
+  const seconds = ms / 1000;
+  return seconds % 1 === 0 ? `${seconds}s` : `${seconds.toFixed(1)}s`;
+}
+
+function deliveryState(delivery: WebhookDelivery): {
+  label: string;
+  variant: 'success' | 'warning' | 'danger' | 'info' | 'default';
+} {
+  if (delivery.success) return { label: 'Delivered', variant: 'success' };
+  if (delivery.nextAttemptAt && delivery.attempts > 0) return { label: 'Rescheduled', variant: 'warning' };
+  if (delivery.nextAttemptAt) return { label: 'Queued', variant: 'info' };
+  return { label: 'Exhausted', variant: 'danger' };
+}
+
 function summarizeDeliveries(list: WebhookDelivery[]) {
   return list.reduce(
-    (summary, delivery) => ({
-      total: summary.total + 1,
-      delivered: summary.delivered + (delivery.success ? 1 : 0),
-      failed: summary.failed + (delivery.success ? 0 : 1),
-      attempts: summary.attempts + delivery.attempts,
-    }),
-    { total: 0, delivered: 0, failed: 0, attempts: 0 },
+    (summary, delivery) => {
+      const state = deliveryState(delivery).label;
+      return {
+        total: summary.total + 1,
+        delivered: summary.delivered + (delivery.success ? 1 : 0),
+        queued: summary.queued + (state === 'Queued' ? 1 : 0),
+        rescheduled: summary.rescheduled + (state === 'Rescheduled' ? 1 : 0),
+        failed: summary.failed + (state === 'Exhausted' ? 1 : 0),
+        attempts: summary.attempts + delivery.attempts,
+      };
+    },
+    { total: 0, delivered: 0, queued: 0, rescheduled: 0, failed: 0, attempts: 0 },
   );
 }
 
@@ -72,6 +105,9 @@ export default function WebhooksPage({ client }: WebhooksPageProps) {
   const [deliveries, setDeliveries] = useState<Record<string, WebhookDelivery[]>>({});
   const [loadingDeliveriesId, setLoadingDeliveriesId] = useState<string | null>(null);
   const [retryingDeliveryId, setRetryingDeliveryId] = useState<string | null>(null);
+  const [workerStatus, setWorkerStatus] = useState<WebhookDeliveryWorkerStatus | null>(null);
+  const [loadingWorker, setLoadingWorker] = useState(false);
+  const [runningWorker, setRunningWorker] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
 
@@ -87,7 +123,21 @@ export default function WebhooksPage({ client }: WebhooksPageProps) {
     finally { setLoading(false); }
   };
 
-  useEffect(() => { loadWebhooks(); }, [client]);
+  const loadWorkerStatus = async () => {
+    setLoadingWorker(true);
+    try {
+      setWorkerStatus(await client.webhooks.getDeliveryWorkerStatus());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load webhook worker status');
+    } finally {
+      setLoadingWorker(false);
+    }
+  };
+
+  useEffect(() => {
+    loadWebhooks();
+    loadWorkerStatus();
+  }, [client]);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -127,6 +177,7 @@ export default function WebhooksPage({ client }: WebhooksPageProps) {
       await client.webhooks.test(id);
       setNotice('Test event sent');
       await loadDeliveries(id);
+      await loadWorkerStatus();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to send test');
     } finally {
@@ -152,10 +203,25 @@ export default function WebhooksPage({ client }: WebhooksPageProps) {
       await client.webhooks.retryDelivery(webhookId, deliveryId);
       setNotice('Delivery retry queued');
       await loadDeliveries(webhookId);
+      await loadWorkerStatus();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to retry delivery');
     } finally {
       setRetryingDeliveryId(null);
+    }
+  };
+
+  const runDeliveryWorker = async () => {
+    setRunningWorker(true);
+    try {
+      const result = await client.webhooks.runDeliveryWorker();
+      setNotice(`Delivery queue checked ${result.summary.checked} item${result.summary.checked === 1 ? '' : 's'}`);
+      await loadWorkerStatus();
+      if (expandedId) await loadDeliveries(expandedId);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to run webhook delivery queue');
+    } finally {
+      setRunningWorker(false);
     }
   };
 
@@ -218,6 +284,86 @@ export default function WebhooksPage({ client }: WebhooksPageProps) {
           </button>
         </div>
       )}
+
+      <Card>
+        <CardHeader>
+          <div>
+            <CardTitle>Delivery Queue</CardTitle>
+            <p className="mt-1 text-xs text-gray-400">Durable webhook outbox worker</p>
+          </div>
+          <Badge variant={workerStatus?.enabled ? (workerStatus.running ? 'warning' : 'success') : 'default'}>
+            {workerStatus?.enabled ? (workerStatus.running ? 'Running' : 'Enabled') : 'Disabled'}
+          </Badge>
+        </CardHeader>
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
+          <div className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2">
+            <p className="text-[10px] font-medium uppercase tracking-wide text-gray-400">Active</p>
+            <p className="mt-1 text-sm font-semibold text-gray-900">{workerStatus?.active ? 'Yes' : 'No'}</p>
+          </div>
+          <div className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2">
+            <p className="text-[10px] font-medium uppercase tracking-wide text-gray-400">Interval</p>
+            <p className="mt-1 text-sm font-semibold text-gray-900">
+              {workerStatus ? formatInterval(workerStatus.intervalMs) : '...'}
+            </p>
+          </div>
+          <div className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2">
+            <p className="text-[10px] font-medium uppercase tracking-wide text-gray-400">Batch</p>
+            <p className="mt-1 text-sm font-semibold text-gray-900">{workerStatus?.batchSize ?? '...'}</p>
+          </div>
+          <div className="rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2">
+            <p className="text-[10px] font-medium uppercase tracking-wide text-emerald-600">Delivered</p>
+            <p className="mt-1 text-sm font-semibold text-emerald-700">
+              {workerStatus?.lastSummary?.delivered ?? 0}
+            </p>
+          </div>
+          <div className="rounded-lg border border-amber-100 bg-amber-50 px-3 py-2">
+            <p className="text-[10px] font-medium uppercase tracking-wide text-amber-600">Rescheduled</p>
+            <p className="mt-1 text-sm font-semibold text-amber-700">
+              {workerStatus?.lastSummary?.rescheduled ?? 0}
+            </p>
+          </div>
+          <div className="rounded-lg border border-red-100 bg-red-50 px-3 py-2">
+            <p className="text-[10px] font-medium uppercase tracking-wide text-red-600">Errors</p>
+            <p className="mt-1 text-sm font-semibold text-red-700">
+              {workerStatus?.lastSummary?.errors ?? 0}
+            </p>
+          </div>
+        </div>
+        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 items-start gap-2 text-xs text-gray-500">
+            {workerStatus?.lastError ? (
+              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-amber-500" />
+            ) : (
+              <Clock3 className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-gray-400" />
+            )}
+            <span className="truncate">
+              {workerStatus?.lastError
+                ? workerStatus.lastError
+                : `Last run: ${formatDateTime(workerStatus?.lastRunAt)}`}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={loadWorkerStatus}
+              loading={loadingWorker}
+              icon={<RefreshCw className="h-4 w-4" />}
+            >
+              Refresh
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={runDeliveryWorker}
+              loading={runningWorker}
+              icon={<PlayCircle className="h-4 w-4" />}
+            >
+              Run Queue
+            </Button>
+          </div>
+        </div>
+      </Card>
 
       {/* Create Form */}
       {showForm && (
@@ -384,7 +530,7 @@ export default function WebhooksPage({ client }: WebhooksPageProps) {
                     </div>
 
                     {webhookDeliveries.length > 0 && (
-                      <div className="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                      <div className="mb-3 grid grid-cols-2 gap-3 lg:grid-cols-6">
                         <div className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2">
                           <p className="text-[10px] font-medium uppercase tracking-wide text-gray-400">Total</p>
                           <p className="mt-1 text-sm font-semibold text-gray-900">{deliverySummary.total}</p>
@@ -393,8 +539,16 @@ export default function WebhooksPage({ client }: WebhooksPageProps) {
                           <p className="text-[10px] font-medium uppercase tracking-wide text-emerald-600">Delivered</p>
                           <p className="mt-1 text-sm font-semibold text-emerald-700">{deliverySummary.delivered}</p>
                         </div>
+                        <div className="rounded-lg border border-sky-100 bg-sky-50 px-3 py-2">
+                          <p className="text-[10px] font-medium uppercase tracking-wide text-sky-600">Queued</p>
+                          <p className="mt-1 text-sm font-semibold text-sky-700">{deliverySummary.queued}</p>
+                        </div>
+                        <div className="rounded-lg border border-amber-100 bg-amber-50 px-3 py-2">
+                          <p className="text-[10px] font-medium uppercase tracking-wide text-amber-600">Retrying</p>
+                          <p className="mt-1 text-sm font-semibold text-amber-700">{deliverySummary.rescheduled}</p>
+                        </div>
                         <div className="rounded-lg border border-red-100 bg-red-50 px-3 py-2">
-                          <p className="text-[10px] font-medium uppercase tracking-wide text-red-600">Failed</p>
+                          <p className="text-[10px] font-medium uppercase tracking-wide text-red-600">Exhausted</p>
                           <p className="mt-1 text-sm font-semibold text-red-700">{deliverySummary.failed}</p>
                         </div>
                         <div className="rounded-lg border border-sky-100 bg-sky-50 px-3 py-2">
@@ -410,19 +564,23 @@ export default function WebhooksPage({ client }: WebhooksPageProps) {
                       <div className="divide-y divide-gray-100 rounded-lg border border-gray-100">
                         {webhookDeliveries.map((delivery) => {
                           const payloadExpanded = expandedDeliveryId === delivery.id;
+                          const state = deliveryState(delivery);
 
                           return (
                             <div key={delivery.id} className="px-3 py-3 text-sm">
                               <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
                                 <div className="min-w-0">
                                   <div className="flex flex-wrap items-center gap-2">
-                                    <Badge size="sm" variant={delivery.success ? 'success' : 'danger'}>
-                                      {delivery.success ? 'Delivered' : 'Failed'}
-                                    </Badge>
+                                    <Badge size="sm" variant={state.variant}>{state.label}</Badge>
                                     <span className="font-medium text-gray-800">{delivery.event}</span>
                                     <span className="text-xs text-gray-400">HTTP {delivery.status}</span>
                                   </div>
                                   <p className="mt-1 truncate font-mono text-xs text-gray-400">{delivery.id}</p>
+                                  {!delivery.success && (
+                                    <p className="mt-1 text-xs text-gray-500">
+                                      Next attempt: {formatDateTime(delivery.nextAttemptAt)}
+                                    </p>
+                                  )}
                                   {delivery.error && (
                                     <p className="mt-1 rounded bg-red-50 px-2 py-1 text-xs text-red-600">
                                       {delivery.error}

@@ -59,6 +59,7 @@ describe('MerchantClient', () => {
       expect(client.balance).toBeDefined();
       expect(client.fiber).toBeDefined();
       expect(client.stats).toBeDefined();
+      expect(client.auth).toBeDefined();
     });
   });
 
@@ -321,6 +322,71 @@ describe('MerchantClient', () => {
         expect(mockFetch).toHaveBeenCalledWith('/webhooks/wh-123/test', { method: 'POST' });
         expect(result.webhookId).toBe('wh-123');
       });
+    });
+
+    describe('delivery worker', () => {
+      it('should GET /webhooks/delivery-worker/status', async () => {
+        mockFetch.mockResolvedValue({
+          enabled: true,
+          active: true,
+          running: false,
+          intervalMs: 5000,
+          batchSize: 25,
+          maxRetries: 5,
+        });
+        const result = await client.webhooks.getDeliveryWorkerStatus();
+        expect(mockFetch).toHaveBeenCalledWith('/webhooks/delivery-worker/status');
+        expect(result.maxRetries).toBe(5);
+      });
+
+      it('should POST /webhooks/delivery-worker/run with optional limit', async () => {
+        mockFetch.mockResolvedValue({
+          trigger: 'manual',
+          startedAt: '2026-07-08T12:00:00Z',
+          finishedAt: '2026-07-08T12:00:01Z',
+          summary: {
+            checked: 1,
+            delivered: 1,
+            rescheduled: 0,
+            failed: 0,
+            skipped: 0,
+            errors: 0,
+          },
+        });
+        const result = await client.webhooks.runDeliveryWorker(1);
+        expect(mockFetch).toHaveBeenCalledWith('/webhooks/delivery-worker/run', {
+          method: 'POST',
+          body: { limit: 1 },
+        });
+        expect(result.summary.delivered).toBe(1);
+      });
+    });
+  });
+
+  describe('auth', () => {
+    it('should GET /auth/me', async () => {
+      mockFetch.mockResolvedValue({
+        merchantId: 'merchant-1',
+        label: 'Demo Merchant',
+        role: 'owner',
+        permissions: ['read', 'manage_keys'],
+        users: [],
+      });
+      const result = await client.auth.me();
+      expect(mockFetch).toHaveBeenCalledWith('/auth/me');
+      expect(result.role).toBe('owner');
+    });
+
+    it('should POST /auth/api-key/rotate', async () => {
+      mockFetch.mockResolvedValue({
+        merchantId: 'merchant-1',
+        apiKey: 'fm_sk_rotated',
+        role: 'owner',
+        rotatedAt: '2026-07-08T12:00:00Z',
+      });
+      const result = await client.auth.rotateApiKey();
+      expect(mockFetch).toHaveBeenCalledWith('/auth/api-key/rotate', { method: 'POST' });
+      expect(result.apiKey).toBe('fm_sk_rotated');
     });
   });
 

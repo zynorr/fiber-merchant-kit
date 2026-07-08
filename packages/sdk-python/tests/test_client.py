@@ -188,6 +188,34 @@ class TestHealth:
         assert result["status"] == "ok"
         assert result["version"] == "1.0.0"
 
+    def test_me_returns_auth_context(self, mock_client, mock_response):
+        client, mock_httpx = mock_client
+        mock_httpx.get.return_value = mock_response({
+            "merchantId": "merchant-1",
+            "role": "owner",
+            "permissions": ["read", "manage_keys"],
+            "users": [],
+        })
+
+        result = client.me()
+
+        mock_httpx.get.assert_called_once_with("/auth/me")
+        assert result["role"] == "owner"
+
+    def test_rotate_api_key(self, mock_client, mock_response):
+        client, mock_httpx = mock_client
+        mock_httpx.post.return_value = mock_response({
+            "merchantId": "merchant-1",
+            "apiKey": "fm_sk_rotated",
+            "role": "owner",
+            "rotatedAt": "2026-07-08T12:00:00Z",
+        })
+
+        result = client.rotate_api_key()
+
+        mock_httpx.post.assert_called_once_with("/auth/api-key/rotate")
+        assert result["apiKey"] == "fm_sk_rotated"
+
 
 # ── Invoices ───────────────────────────────────────────────────
 
@@ -502,6 +530,44 @@ class TestWebhooks:
 
         mock_httpx.post.assert_called_once_with("/webhooks/wh-123/test")
         assert result["webhookId"] == "wh-123"
+
+    def test_get_delivery_worker_status(self, mock_client, mock_response):
+        client, mock_httpx = mock_client
+        mock_httpx.get.return_value = mock_response({
+            "enabled": True,
+            "active": True,
+            "running": False,
+            "intervalMs": 5000,
+            "batchSize": 25,
+            "maxRetries": 5,
+        })
+
+        result = client.webhooks.get_delivery_worker_status()
+
+        mock_httpx.get.assert_called_once_with("/webhooks/delivery-worker/status")
+        assert result["maxRetries"] == 5
+
+    def test_run_delivery_worker(self, mock_client, mock_response):
+        client, mock_httpx = mock_client
+        mock_httpx.post.return_value = mock_response({
+            "trigger": "manual",
+            "summary": {
+                "checked": 1,
+                "delivered": 1,
+                "rescheduled": 0,
+                "failed": 0,
+                "skipped": 0,
+                "errors": 0,
+            },
+        })
+
+        result = client.webhooks.run_delivery_worker(limit=1)
+
+        mock_httpx.post.assert_called_once_with(
+            "/webhooks/delivery-worker/run",
+            json={"limit": 1},
+        )
+        assert result["summary"]["delivered"] == 1
 
 
 # ── Transactions ───────────────────────────────────────────────

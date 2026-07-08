@@ -1,6 +1,6 @@
-import { getFiberClient } from '../lib/fiber-client';
+import { getConfiguredFiberRpcUrls, getFiberClient } from '../lib/fiber-client';
 import { getSettlementWorkerConfig } from './settlement-worker';
-import type { ChannelInfo } from './fiber-client';
+import { FiberNodeClient, type ChannelInfo } from './fiber-client';
 
 type JsonRecord = Record<string, unknown>;
 
@@ -8,6 +8,13 @@ export interface FiberStatusResponse {
   mode: 'demo' | 'live';
   reachable: boolean;
   rpcUrlConfigured: boolean;
+  rpcEndpoints: {
+    url: string;
+    reachable: boolean;
+    nodeId?: string;
+    version?: string;
+    error?: string;
+  }[];
   currency: string;
   checkedAt: string;
   worker: ReturnType<typeof getSettlementWorkerConfig>;
@@ -115,6 +122,20 @@ function summarizeChannels(channels: ChannelInfo[]): FiberStatusResponse['channe
   };
 }
 
+function sanitizeRpcUrl(raw: string): string {
+  if (raw === 'demo') return 'demo';
+  try {
+    const url = new URL(raw);
+    url.username = '';
+    url.password = '';
+    url.search = '';
+    url.hash = '';
+    return url.toString().replace(/\/$/, '');
+  } catch {
+    return raw;
+  }
+}
+
 function normalizeNodeInfo(
   nodeInfo: unknown,
   channelsCount: number,
@@ -143,9 +164,42 @@ function normalizeNodeInfo(
   };
 }
 
+async function checkRpcEndpoints(urls: string[]): Promise<FiberStatusResponse['rpcEndpoints']> {
+  const liveUrls = urls.filter((url) => url && url !== 'demo');
+  if (liveUrls.length === 0) {
+    return [{ url: 'demo', reachable: true, nodeId: 'demo-node', version: '0.1.0' }];
+  }
+
+  return Promise.all(liveUrls.map(async (url) => {
+    try {
+      const client = new FiberNodeClient({
+        rpcUrl: url,
+        rpcUser: process.env.FIBER_NODE_RPC_USER,
+        rpcPassword: process.env.FIBER_NODE_RPC_PASSWORD,
+        rpcAuthToken: process.env.FIBER_NODE_RPC_AUTH_TOKEN,
+        rpcCurrency: process.env.FIBER_NODE_CURRENCY,
+      });
+      const info = normalizeNodeInfo(await client.getNodeInfo(), 0);
+      return {
+        url: sanitizeRpcUrl(url),
+        reachable: true,
+        nodeId: info?.nodeId,
+        version: info?.version,
+      };
+    } catch (err: unknown) {
+      return {
+        url: sanitizeRpcUrl(url),
+        reachable: false,
+        error: err instanceof Error ? err.message : String(err),
+      };
+    }
+  }));
+}
+
 export async function getFiberNetworkStatus(): Promise<FiberStatusResponse> {
   const fiber = getFiberClient();
-  const liveMode = Boolean(process.env.FIBER_NODE_RPC_URL && process.env.FIBER_NODE_RPC_URL !== 'demo');
+  const rpcUrls = getConfiguredFiberRpcUrls();
+  const liveMode = rpcUrls.some((url) => url !== 'demo');
   const errors: string[] = [];
   let nodeInfo: unknown;
   let channels: ChannelInfo[] = [];
@@ -169,7 +223,8 @@ export async function getFiberNetworkStatus(): Promise<FiberStatusResponse> {
   return {
     mode: liveMode ? 'live' : 'demo',
     reachable: nodeReachable || channelsReachable,
-    rpcUrlConfigured: Boolean(process.env.FIBER_NODE_RPC_URL),
+    rpcUrlConfigured: rpcUrls.length > 0 && rpcUrls[0] !== 'demo',
+    rpcEndpoints: await checkRpcEndpoints(rpcUrls),
     currency: process.env.FIBER_NODE_CURRENCY || 'Fibt',
     checkedAt: new Date().toISOString(),
     worker: getSettlementWorkerConfig(),

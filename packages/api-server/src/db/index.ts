@@ -11,6 +11,8 @@ import { DbWrapper } from './database';
 import { SCHEMA_SQL } from './schema';
 import type {
   DbMerchant,
+  DbMerchantUser,
+  MerchantRole,
   DbInvoice,
   DbWebhook,
   DbWebhookDelivery,
@@ -67,6 +69,7 @@ function addColumnIfMissing(table: string, column: string, definition: string): 
 }
 
 function runSchemaMigrations(): void {
+  addColumnIfMissing('merchants', 'role', "TEXT NOT NULL DEFAULT 'owner'");
   addColumnIfMissing('webhook_deliveries', 'next_attempt_at', 'TEXT');
   addColumnIfMissing('webhook_deliveries', 'locked_at', 'TEXT');
   db.exec(`
@@ -82,6 +85,13 @@ function runSchemaMigrations(): void {
 
 /** Initialise the database (must be called once before any query) */
 export async function initDatabase(): Promise<void> {
+  if ((process.env.FIBER_DB_ENGINE || 'sqlite') === 'postgres') {
+    throw new Error(
+      'PostgreSQL mode is configured. Apply docs/postgres-schema.sql and run a Postgres-backed adapter deployment; ' +
+      'the hackathon runtime defaults to sql.js SQLite for local/demo verification.',
+    );
+  }
+
   const dbPath = process.env.FIBER_MERCHANT_DB_PATH || path.join(process.cwd(), 'data', 'merchant.db');
   db = new DbWrapper(dbPath);
   await db.init();
@@ -119,6 +129,35 @@ export function createMerchant(label?: string): DbMerchant {
   const apiKey = `fm_sk_${Buffer.from(crypto.randomBytes(32)).toString('hex')}`;
   d.prepare('INSERT INTO merchants (id, api_key, label) VALUES (?, ?, ?)').run(id, apiKey, label || null);
   return d.prepare('SELECT * FROM merchants WHERE id = ?').get<DbMerchant>(id)!;
+}
+
+export function rotateMerchantApiKey(merchantId: string): DbMerchant | undefined {
+  const apiKey = `fm_sk_${Buffer.from(crypto.randomBytes(32)).toString('hex')}`;
+  getDb().prepare('UPDATE merchants SET api_key = ?, last_used_at = datetime("now") WHERE id = ?').run(apiKey, merchantId);
+  return getDb().prepare('SELECT * FROM merchants WHERE id = ?').get<DbMerchant>(merchantId);
+}
+
+export function listMerchantUsers(merchantId: string): DbMerchantUser[] {
+  return getDb().prepare(`
+    SELECT *
+    FROM merchant_users
+    WHERE merchant_id = ? AND active = 1
+    ORDER BY created_at ASC, id ASC
+  `).all<DbMerchantUser>(merchantId);
+}
+
+export function createMerchantUser(data: {
+  merchantId: string;
+  email: string;
+  name?: string;
+  role?: MerchantRole;
+}): DbMerchantUser {
+  const id = crypto.randomUUID();
+  getDb().prepare(`
+    INSERT INTO merchant_users (id, merchant_id, email, name, role)
+    VALUES (?, ?, ?, ?, ?)
+  `).run(id, data.merchantId, data.email, data.name || null, data.role || 'viewer');
+  return getDb().prepare('SELECT * FROM merchant_users WHERE id = ?').get<DbMerchantUser>(id)!;
 }
 
 // -- Idempotency queries ----------------------------------------------------

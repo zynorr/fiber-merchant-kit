@@ -10,7 +10,7 @@
  */
 
 import { Router, Response } from 'express';
-import { AuthenticatedRequest } from '../middleware/auth';
+import { AuthenticatedRequest, ROLE_PERMISSIONS, requireRole } from '../middleware/auth';
 import * as db from '../db';
 import { toCamelCase, rowsToCamelCase } from '../lib/utils';
 import { getFiberClient } from '../lib/fiber-client';
@@ -20,6 +20,47 @@ import { getFiberNetworkStatus } from '../services/fiber-status';
 import { runSettlementSweep } from '../services/settlement-worker';
 
 const router = Router();
+
+router.get('/auth/me', (req: AuthenticatedRequest, res: Response) => {
+  const role = req.merchantRole || 'viewer';
+  res.json({
+    merchantId: req.merchantId,
+    label: req.merchantLabel || null,
+    role,
+    permissions: ROLE_PERMISSIONS[role],
+    users: req.merchantId
+      ? db.listMerchantUsers(req.merchantId).map((user) => ({
+        ...toCamelCase(user),
+        active: Boolean(user.active),
+      }))
+      : [],
+  });
+});
+
+router.post('/auth/api-key/rotate', requireRole(['admin']), (req: AuthenticatedRequest, res: Response) => {
+  try {
+    if (!req.merchantId) {
+      res.status(401).json({ error: 'Missing merchant context' });
+      return;
+    }
+
+    const merchant = db.rotateMerchantApiKey(req.merchantId);
+    if (!merchant) {
+      res.status(404).json({ error: 'Merchant not found' });
+      return;
+    }
+
+    res.json({
+      merchantId: merchant.id,
+      apiKey: merchant.api_key,
+      role: merchant.role || 'owner',
+      rotatedAt: new Date().toISOString(),
+    });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    res.status(500).json({ error: message });
+  }
+});
 
 // ── List Transactions ─────────────────────────────────────────
 

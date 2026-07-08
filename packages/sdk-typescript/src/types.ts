@@ -116,6 +116,35 @@ export interface WebhookDelivery {
   deliveredAt: string;
 }
 
+export interface WebhookDeliveryQueueSummary {
+  checked: number;
+  delivered: number;
+  rescheduled: number;
+  failed: number;
+  skipped: number;
+  errors: number;
+}
+
+export interface WebhookDeliveryWorkerStatus {
+  enabled: boolean;
+  active: boolean;
+  running: boolean;
+  intervalMs: number;
+  batchSize: number;
+  maxRetries: number;
+  lastRunAt?: string;
+  lastSuccessAt?: string;
+  lastError?: string;
+  lastSummary?: WebhookDeliveryQueueSummary;
+}
+
+export interface WebhookDeliveryRunResult {
+  trigger: 'manual';
+  startedAt: string;
+  finishedAt: string;
+  summary: WebhookDeliveryQueueSummary;
+}
+
 /** Response returned after queueing a webhook test event */
 export interface WebhookTestResponse {
   message: string;
@@ -218,11 +247,20 @@ export interface FiberStatus {
   mode: 'demo' | 'live';
   reachable: boolean;
   rpcUrlConfigured: boolean;
+  rpcEndpoints: FiberRpcEndpointStatus[];
   currency: string;
   checkedAt: string;
   worker: SettlementWorkerStatus;
   node: FiberNodeStatus | null;
   channels: FiberChannelSummary;
+  error?: string;
+}
+
+export interface FiberRpcEndpointStatus {
+  url: string;
+  reachable: boolean;
+  nodeId?: string;
+  version?: string;
   error?: string;
 }
 
@@ -234,6 +272,33 @@ export interface ApiKey {
   active: boolean;
   createdAt: string;
   lastUsedAt?: string;
+}
+
+export type MerchantRole = 'owner' | 'admin' | 'developer' | 'viewer';
+
+export interface MerchantUser {
+  id: string;
+  merchantId: string;
+  email: string;
+  name?: string;
+  role: MerchantRole;
+  active: boolean;
+  createdAt: string;
+}
+
+export interface MerchantAuthContext {
+  merchantId: string;
+  label?: string | null;
+  role: MerchantRole;
+  permissions: string[];
+  users: MerchantUser[];
+}
+
+export interface ApiKeyRotationResponse {
+  merchantId: string;
+  apiKey: string;
+  role: MerchantRole;
+  rotatedAt: string;
 }
 
 /** Paginated response */

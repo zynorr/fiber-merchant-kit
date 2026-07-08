@@ -13,7 +13,12 @@
 import { Router, Response } from 'express';
 import { AuthenticatedRequest } from '../middleware/auth';
 import * as db from '../db';
-import { dispatchWebhookEvent, replayWebhookDelivery } from '../services/webhook-delivery';
+import {
+  dispatchWebhookEvent,
+  getWebhookDeliveryWorkerConfig,
+  processWebhookDeliveryQueue,
+  replayWebhookDelivery,
+} from '../services/webhook-delivery';
 import crypto from 'crypto';
 import { toCamelCase } from '../lib/utils';
 import { z } from 'zod';
@@ -21,6 +26,10 @@ import { registerWebhookSchema, updateWebhookSchema } from '../validation';
 import type { DbWebhook, DbWebhookDelivery } from '../db/types';
 
 const router = Router();
+
+const deliveryWorkerRunSchema = z.object({
+  limit: z.number().int().positive().max(100).optional(),
+}).optional();
 
 function formatWebhook(webhook: DbWebhook): Record<string, unknown> {
   return {
@@ -51,6 +60,31 @@ function formatDelivery(delivery: DbWebhookDelivery): Record<string, unknown> {
     deliveredAt: delivery.delivered_at,
   };
 }
+
+router.get('/delivery-worker/status', (_req: AuthenticatedRequest, res: Response) => {
+  res.json(getWebhookDeliveryWorkerConfig());
+});
+
+router.post('/delivery-worker/run', async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const parsed = deliveryWorkerRunSchema.parse(req.body);
+    const startedAt = new Date().toISOString();
+    const summary = await processWebhookDeliveryQueue({ limit: parsed?.limit });
+    res.json({
+      trigger: 'manual',
+      startedAt,
+      finishedAt: new Date().toISOString(),
+      summary,
+    });
+  } catch (err: unknown) {
+    if (err instanceof z.ZodError) {
+      res.status(400).json({ error: 'Validation failed', details: err.issues });
+      return;
+    }
+    const message = err instanceof Error ? err.message : String(err);
+    res.status(500).json({ error: message });
+  }
+});
 
 // ── Register Webhook ──────────────────────────────────────────
 

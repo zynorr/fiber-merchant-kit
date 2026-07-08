@@ -137,6 +137,20 @@ describe('validateEnv', () => {
     expect(urlWarn!.message).toContain('valid URL');
   });
 
+  it('accepts comma-separated Fiber RPC failover URLs', () => {
+    vi.stubEnv('FIBER_NODE_RPC_URLS', 'http://localhost:8227,http://localhost:8228');
+    const { warnings } = validateEnv();
+    expect(warnings.filter((w) => w.field === 'FIBER_NODE_RPC_URLS')).toHaveLength(0);
+  });
+
+  it('warns on invalid Fiber RPC failover URL entries', () => {
+    vi.stubEnv('FIBER_NODE_RPC_URLS', 'http://localhost:8227,not-a-url');
+    const { warnings } = validateEnv();
+    const failoverWarn = warnings.find((w) => w.field === 'FIBER_NODE_RPC_URLS');
+    expect(failoverWarn).toBeDefined();
+    expect(failoverWarn!.severity).toBe('warning');
+  });
+
   it('warns when FIBER_NODE_RPC_USER is set but PASSWORD is missing', () => {
     vi.stubEnv('FIBER_NODE_RPC_URL', 'http://localhost:8227');
     vi.stubEnv('FIBER_NODE_RPC_USER', 'ckb');
@@ -209,6 +223,22 @@ describe('validateEnv', () => {
     expect(warnings.find((w) => w.field === 'WEBHOOK_DELIVERY_WORKER')?.severity).toBe('error');
     expect(warnings.find((w) => w.field === 'WEBHOOK_DELIVERY_WORKER_INTERVAL_MS')?.severity).toBe('error');
     expect(warnings.find((w) => w.field === 'WEBHOOK_DELIVERY_WORKER_BATCH_SIZE')?.severity).toBe('error');
+  });
+
+  it('accepts sqlite and postgres database engine configuration', () => {
+    vi.stubEnv('FIBER_DB_ENGINE', 'postgres');
+    vi.stubEnv('DATABASE_URL', 'postgresql://fiber:secret@localhost:5432/fiber_merchant');
+    const { env, warnings } = validateEnv();
+    expect(env.FIBER_DB_ENGINE).toBe('postgres');
+    expect(warnings.filter((w) => w.field === 'DATABASE_URL')).toHaveLength(0);
+  });
+
+  it('requires DATABASE_URL when postgres database engine is selected', () => {
+    vi.stubEnv('FIBER_DB_ENGINE', 'postgres');
+    const { warnings } = validateEnv();
+    const dbWarn = warnings.find((w) => w.field === 'DATABASE_URL');
+    expect(dbWarn).toBeDefined();
+    expect(dbWarn!.severity).toBe('error');
   });
 
   it('accepts demo as FIBER_NODE_RPC_URL in development without validation', () => {

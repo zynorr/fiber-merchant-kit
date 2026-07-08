@@ -179,6 +179,18 @@ class MerchantClient:
         resp.raise_for_status()
         return resp.json()
 
+    def me(self) -> dict:
+        """Return the authenticated merchant context and permissions."""
+        resp = self._client.get("/auth/me")
+        resp.raise_for_status()
+        return resp.json()
+
+    def rotate_api_key(self) -> dict:
+        """Rotate the current merchant API key and return the replacement key."""
+        resp = self._client.post("/auth/api-key/rotate")
+        resp.raise_for_status()
+        return resp.json()
+
     def close(self):
         """Close the underlying HTTP client."""
         self._client.close()
@@ -315,6 +327,17 @@ class _WebhookResource:
 
     def test(self, webhook_id: str) -> dict:
         resp = self._client.post(f"/webhooks/{webhook_id}/test")
+        resp.raise_for_status()
+        return resp.json()
+
+    def get_delivery_worker_status(self) -> dict:
+        resp = self._client.get("/webhooks/delivery-worker/status")
+        resp.raise_for_status()
+        return resp.json()
+
+    def run_delivery_worker(self, limit: Optional[int] = None) -> dict:
+        body = {"limit": limit} if limit is not None else None
+        resp = self._client.post("/webhooks/delivery-worker/run", json=body)
         resp.raise_for_status()
         return resp.json()
 

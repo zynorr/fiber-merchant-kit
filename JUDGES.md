@@ -18,6 +18,7 @@ Fiber Merchant Kit is merchant payment infrastructure for the Fiber Network: it 
 | API contract | Open [docs/openapi.json](docs/openapi.json) | OpenAPI 3.0 contract for all public and authenticated endpoints |
 | Evidence | Open [docs/demo-evidence.md](docs/demo-evidence.md) | Paid demo checkout transaction ID and invoice proof |
 | Optional | Read/run [docs/testnet-smoke.md](docs/testnet-smoke.md) | Confirms real Fiber testnet RPC readiness and records a funded live settlement |
+| Production | Open [docs/deployment.md](docs/deployment.md) | Docker, failover, and PostgreSQL production path |
 
 ## Why This Project Exists
 
@@ -112,8 +113,11 @@ In demo mode, the store exposes a payment simulation action so judges can comple
 | Fiber network status API | `packages/api-server/src/services/fiber-status.ts`, `packages/api-server/src/routes/merchant.ts` |
 | Idempotent DB transitions | `packages/api-server/src/db/index.ts` |
 | Fiber RPC wrapper and demo mode | `packages/api-server/src/services/fiber-client.ts` |
+| Fiber RPC failover and endpoint status | `packages/api-server/src/lib/fiber-client.ts`, `packages/api-server/src/services/fiber-status.ts` |
 | Webhook outbox/retry/signing/logs/replay | `packages/api-server/src/services/webhook-delivery.ts`, `packages/api-server/src/db/index.ts`, `packages/admin-dashboard/src/pages/WebhooksPage.tsx` |
 | Webhook API and delivery log response | `packages/api-server/src/routes/webhooks.ts` |
+| Auth context, roles, and key rotation | `packages/api-server/src/middleware/auth.ts`, `packages/api-server/src/routes/merchant.ts` |
+| Docker and PostgreSQL production path | `Dockerfile`, `docker-compose.yml`, `.env.production.example`, `docs/postgres-schema.sql` |
 | OpenAPI contract | `docs/openapi.json` |
 | Dashboard workflows | `packages/admin-dashboard/src/pages` |
 | Demo checkout | `packages/demo-store/src/App.tsx` |
@@ -128,7 +132,10 @@ In demo mode, the store exposes a payment simulation action so judges can comple
 | Idempotency keys | Duplicate checkout submissions replay the first invoice instead of creating double payment requests |
 | Idempotent payment transition | Repeated invoice polling does not create duplicate successful transactions |
 | Durable webhook outbox | Failed events keep `nextAttemptAt` retry state in SQLite instead of disappearing in process memory |
+| Webhook queue operations | Dashboard and API expose worker status, queued/rescheduled state, and one-click queue runs |
 | Webhook delivery shape | API returns clean camelCase delivery logs instead of raw DB rows |
+| Fiber failover status | Multiple configured FNN endpoints are checked and reported without exposing credentials |
+| RBAC foundation | API keys carry roles and can expose permission context for future merchant teams |
 | Retry semantics | Non-2xx responses and network errors are both retried |
 | Manual replay | Failed delivery payloads can be re-queued without mutating the original log |
 | SDK base URL normalization | Users can pass either server root or `/api/v1` safely |
@@ -161,6 +168,7 @@ This is not just a UI demo. The system is structured around payment infrastructu
 
 - Trust boundary: Fiber credentials stay server-side.
 - Reliability: webhooks retry, record delivery attempts, and support manual replay.
+- Operability: webhook queues and Fiber endpoint health are visible from API/dashboard surfaces.
 - Consistency: invoice status transitions are idempotent.
 - Operability: dashboard exposes invoices, transactions, balances, network status, and webhook logs.
 - Integration: SDKs are first-class, not an afterthought.
@@ -172,18 +180,19 @@ The current architecture is intentionally hackathon-friendly and production-shap
 
 | Current Choice | Production Evolution |
 |---|---|
-| sql.js SQLite | PostgreSQL adapter |
+| sql.js SQLite | PostgreSQL schema and adapter deployment path |
 | SQLite webhook outbox with in-process worker | External queue workers and scheduling for multi-instance deployments |
-| Single API key auth | Merchant users, teams, RBAC |
+| Role-bearing API key auth | Merchant users, teams, richer RBAC, and audit logs |
 | In-process settlement worker | Durable queue worker for multi-instance deployments |
 | Demo mode | Real Fiber node deployment |
-| Testnet smoke plus funded settlement evidence | Repeatable production monitoring against funded channels |
+| Testnet smoke plus funded settlement evidence | Repeatable production monitoring against funded channels and multi-node failover |
 
 ## Useful Links
 
 - [README](README.md)
 - [Architecture](docs/architecture.md)
 - [Getting Started](docs/getting-started.md)
+- [Deployment Notes](docs/deployment.md)
 - [Demo Evidence](docs/demo-evidence.md)
 - [Fiber Testnet Smoke](docs/testnet-smoke.md)
 - [API Reference](docs/api-reference.md)

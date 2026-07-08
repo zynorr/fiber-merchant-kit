@@ -33,6 +33,8 @@ const envSchema = z.object({
   // Fiber Node RPC
   FIBER_NODE_RPC_URL: z.string().optional(),
 
+  FIBER_NODE_RPC_URLS: z.string().optional(),
+
   FIBER_NODE_RPC_USER: z.string().optional(),
 
   FIBER_NODE_RPC_PASSWORD: z.string().optional(),
@@ -95,7 +97,14 @@ const envSchema = z.object({
   CORS_ORIGIN: z.string().optional(),
 
   // Database
+  FIBER_DB_ENGINE: z
+    .enum(['sqlite', 'postgres'])
+    .optional()
+    .default('sqlite'),
+
   FIBER_MERCHANT_DB_PATH: z.string().optional(),
+
+  DATABASE_URL: z.string().optional(),
 
   // Rate Limiting
   DISABLE_RATE_LIMIT: z.string().optional(),
@@ -154,17 +163,23 @@ export function validateEnv(): { env: ValidatedEnv; warnings: EnvWarning[] } {
   // ── Custom validations beyond Zod schema ────────────────────
 
   // Production requires a real Fiber node URL
+  const rpcUrls = [
+    ...(env.FIBER_NODE_RPC_URLS ? env.FIBER_NODE_RPC_URLS.split(',').map((url) => url.trim()).filter(Boolean) : []),
+    ...(env.FIBER_NODE_RPC_URL ? [env.FIBER_NODE_RPC_URL] : []),
+  ];
+  const hasLiveRpcUrl = rpcUrls.some((url) => url && url !== 'demo');
+
   if (env.NODE_ENV === 'production') {
-    if (!env.FIBER_NODE_RPC_URL) {
+    if (!hasLiveRpcUrl) {
       warnings.push({
         field: 'FIBER_NODE_RPC_URL',
         message:
-          'FIBER_NODE_RPC_URL is required in production mode. ' +
+          'FIBER_NODE_RPC_URL or FIBER_NODE_RPC_URLS is required in production mode. ' +
           'Set it to your Fiber Network Node RPC endpoint (e.g. http://localhost:8227). ' +
           'For development/demo mode, leave it unset or set NODE_ENV=development.',
         severity: 'error',
       });
-    } else if (env.FIBER_NODE_RPC_URL === 'demo') {
+    } else if (env.FIBER_NODE_RPC_URL === 'demo' && !env.FIBER_NODE_RPC_URLS) {
       warnings.push({
         field: 'FIBER_NODE_RPC_URL',
         message:
@@ -177,20 +192,23 @@ export function validateEnv(): { env: ValidatedEnv; warnings: EnvWarning[] } {
   }
 
   // FIBER_NODE_RPC_URL set but URL format seems wrong
-  if (env.FIBER_NODE_RPC_URL && env.FIBER_NODE_RPC_URL !== 'demo') {
+  for (const rpcUrl of rpcUrls) {
+    if (!rpcUrl || rpcUrl === 'demo') continue;
     try {
-      new URL(env.FIBER_NODE_RPC_URL);
+      new URL(rpcUrl);
     } catch {
       warnings.push({
-        field: 'FIBER_NODE_RPC_URL',
+        field: env.FIBER_NODE_RPC_URLS ? 'FIBER_NODE_RPC_URLS' : 'FIBER_NODE_RPC_URL',
         message:
-          `"${env.FIBER_NODE_RPC_URL}" does not appear to be a valid URL. ` +
+          `"${rpcUrl}" does not appear to be a valid URL. ` +
           'Expected format: http://localhost:8227. ' +
           'If you meant to use demo mode, leave FIBER_NODE_RPC_URL unset.',
         severity: 'warning',
       });
     }
+  }
 
+  if (rpcUrls.some((url) => url && url !== 'demo')) {
     // RPC user set but password missing (or vice versa).
     // Bearer tokens are preferred for protected/public Fiber RPC endpoints.
     if (!env.FIBER_NODE_RPC_AUTH_TOKEN && env.FIBER_NODE_RPC_USER && !env.FIBER_NODE_RPC_PASSWORD) {
@@ -210,6 +228,33 @@ export function validateEnv(): { env: ValidatedEnv; warnings: EnvWarning[] } {
           'Either set both credentials, set FIBER_NODE_RPC_AUTH_TOKEN, or leave auth unset for a private node.',
         severity: 'warning',
       });
+    }
+  }
+
+  if (env.FIBER_DB_ENGINE === 'postgres') {
+    if (!env.DATABASE_URL) {
+      warnings.push({
+        field: 'DATABASE_URL',
+        message: 'DATABASE_URL is required when FIBER_DB_ENGINE=postgres.',
+        severity: 'error',
+      });
+    } else {
+      try {
+        const parsed = new URL(env.DATABASE_URL);
+        if (!['postgres:', 'postgresql:'].includes(parsed.protocol)) {
+          warnings.push({
+            field: 'DATABASE_URL',
+            message: 'DATABASE_URL must use postgres:// or postgresql:// when FIBER_DB_ENGINE=postgres.',
+            severity: 'error',
+          });
+        }
+      } catch {
+        warnings.push({
+          field: 'DATABASE_URL',
+          message: 'DATABASE_URL must be a valid PostgreSQL connection URL.',
+          severity: 'error',
+        });
+      }
     }
   }
 

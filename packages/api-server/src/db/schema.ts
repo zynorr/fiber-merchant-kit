@@ -16,9 +16,23 @@ export const SCHEMA_SQL = `
     id TEXT PRIMARY KEY,
     api_key TEXT UNIQUE NOT NULL,
     label TEXT,
+    role TEXT NOT NULL DEFAULT 'owner',
     active INTEGER DEFAULT 1,
     created_at TEXT DEFAULT (datetime('now')),
     last_used_at TEXT
+  );
+
+  -- Merchant user identities for production RBAC expansion.
+  CREATE TABLE IF NOT EXISTS merchant_users (
+    id TEXT PRIMARY KEY,
+    merchant_id TEXT NOT NULL,
+    email TEXT NOT NULL,
+    name TEXT,
+    role TEXT NOT NULL DEFAULT 'viewer',
+    active INTEGER DEFAULT 1,
+    created_at TEXT DEFAULT (datetime('now')),
+    UNIQUE (merchant_id, email),
+    FOREIGN KEY (merchant_id) REFERENCES merchants(id)
   );
 
   -- Invoices (payment requests)
@@ -112,5 +126,6 @@ export const SCHEMA_SQL = `
   CREATE INDEX IF NOT EXISTS idx_transactions_created ON transactions(created_at);
   CREATE INDEX IF NOT EXISTS idx_webhook_deliveries_webhook ON webhook_deliveries(webhook_id);
   CREATE INDEX IF NOT EXISTS idx_invoices_merchant ON invoices(merchant_id);
+  CREATE INDEX IF NOT EXISTS idx_merchant_users_merchant ON merchant_users(merchant_id);
   CREATE INDEX IF NOT EXISTS idx_idempotency_lookup ON idempotency_keys(merchant_id, idempotency_key, method, route);
 `;

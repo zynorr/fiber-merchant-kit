@@ -93,6 +93,7 @@ Full architecture: [docs/architecture.md](docs/architecture.md)
 | [docs/api-reference.md](docs/api-reference.md) | Endpoint reference and response shapes |
 | [docs/openapi.json](docs/openapi.json) | Machine-readable OpenAPI 3.0 contract for the Merchant API |
 | [docs/getting-started.md](docs/getting-started.md) | Local setup walkthrough |
+| [docs/deployment.md](docs/deployment.md) | Docker, production env, failover, and PostgreSQL deployment notes |
 | [docs/demo-evidence.md](docs/demo-evidence.md) | Live demo checkout evidence with paid transaction |
 | [docs/testnet-smoke.md](docs/testnet-smoke.md) | Real Fiber testnet smoke path and funded settlement evidence |
 | [JUDGES.md](JUDGES.md) | Hackathon review guide |
@@ -138,7 +139,7 @@ When the API server starts, copy the printed `fm_sk_...` API key and use it in t
 6. Open the demo store, add products, and start checkout.
 7. Use the demo payment action to complete checkout, then confirm the paid invoice in the dashboard.
 
-Demo mode works without a real Fiber node. For testnet/production, set `FIBER_NODE_RPC_URL` plus either `FIBER_NODE_RPC_AUTH_TOKEN` for protected Fiber RPC endpoints or `FIBER_NODE_RPC_USER`/`FIBER_NODE_RPC_PASSWORD` for private basic-auth setups. See [docs/testnet-smoke.md](docs/testnet-smoke.md) for both RPC smoke checks and the July 7, 2026 funded settlement evidence.
+Demo mode works without a real Fiber node. For testnet/production, set `FIBER_NODE_RPC_URL` or comma-separated `FIBER_NODE_RPC_URLS` plus either `FIBER_NODE_RPC_AUTH_TOKEN` for protected Fiber RPC endpoints or `FIBER_NODE_RPC_USER`/`FIBER_NODE_RPC_PASSWORD` for private basic-auth setups. See [docs/testnet-smoke.md](docs/testnet-smoke.md) for RPC smoke checks and [docs/deployment.md](docs/deployment.md) for Docker/failover notes.
 
 ## Core Technical Decisions
 
@@ -151,8 +152,11 @@ Demo mode works without a real Fiber node. For testnet/production, set `FIBER_NO
 | Idempotent invoice transitions | Repeated status polling should not duplicate successful transactions |
 | HMAC-signed webhooks | Lets merchants verify events came from their payment server |
 | Durable webhook outbox | Failed delivery attempts keep retry timing in SQLite so events resume after restart |
+| Dashboard queue visibility | Operators can inspect queued/rescheduled/exhausted deliveries and run one worker tick |
 | Retry on non-2xx and network errors | Matches real webhook reliability expectations |
 | Manual webhook replay | Lets operators retry a failed delivery from the API or dashboard |
+| API-key role metadata | Provides a small RBAC foundation for key rotation and future merchant teams |
+| Fiber RPC failover list | Lets live deployments configure multiple FNN endpoints without exposing credentials |
 | Background settlement worker | Live-mode invoices reconcile even when nobody is viewing the invoice page |
 | SDKs mirror API contracts | Judges can evaluate both direct HTTP and library integration paths |
 
@@ -171,6 +175,8 @@ Important endpoints:
 | `GET /` | Public server index for judges and local operators |
 | `GET /api/v1` | Public API discovery metadata |
 | `GET /api/v1/health` | Public health check with Fiber node reachability |
+| `GET /api/v1/auth/me` | Inspect authenticated merchant role and permissions |
+| `POST /api/v1/auth/api-key/rotate` | Rotate the current merchant API key |
 | `POST /api/v1/invoices` | Create invoice |
 | `GET /api/v1/invoices/:id` | Get invoice and refresh payment status |
 | `POST /api/v1/invoices/:id/simulate-payment` | Demo mode only payment confirmation |
@@ -178,6 +184,8 @@ Important endpoints:
 | `POST /api/v1/webhooks` | Register webhook endpoint |
 | `GET /api/v1/webhooks/:id/deliveries` | Inspect delivery logs |
 | `POST /api/v1/webhooks/:id/deliveries/:deliveryId/retry` | Replay a failed webhook delivery |
+| `GET /api/v1/webhooks/delivery-worker/status` | Inspect webhook queue worker status |
+| `POST /api/v1/webhooks/delivery-worker/run` | Run one webhook queue tick immediately |
 | `GET /api/v1/transactions` | List payment history |
 | `GET /api/v1/stats` | Dashboard metrics |
 | `GET /api/v1/fiber/status` | Fiber node, channel, and settlement worker status |
@@ -257,15 +265,17 @@ Demo mode is intentionally frictionless for judging. For production:
 | Area | Current State | Next Step |
 |---|---|---|
 | Persistence | SQLite via sql.js | PostgreSQL adapter for horizontal scale |
-| Auth | API key bearer tokens | Merchant users and RBAC |
-| Webhooks | Signed delivery, SQLite outbox retries, retry logs, and manual replay | External queue workers for horizontal scale |
-| Fiber RPC | Current FNN RPC wrapper, bearer/basic auth, demo mode, status endpoint, and testnet smoke command | Node health alerting and multi-node failover |
+| Auth | API key bearer tokens with role metadata and key rotation | Full merchant users, teams, and audit logs |
+| Webhooks | Signed delivery, SQLite outbox retries, retry logs, manual replay, queue status, and manual worker run | External queue workers for horizontal scale |
+| Fiber RPC | Current FNN RPC wrapper, bearer/basic auth, failover URLs, demo mode, status endpoint, and testnet smoke command | Node health alerting and automated failover policy |
+| Deployment | API Dockerfile, Compose, production env template, PostgreSQL schema | Managed database and hosted dashboard |
 
 ## Links
 
 - [Judge Guide](JUDGES.md)
 - [Architecture](docs/architecture.md)
 - [Getting Started](docs/getting-started.md)
+- [Deployment Notes](docs/deployment.md)
 - [Demo Evidence](docs/demo-evidence.md)
 - [Fiber Testnet Smoke](docs/testnet-smoke.md)
 - [API Reference](docs/api-reference.md)

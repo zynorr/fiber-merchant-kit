@@ -7,11 +7,13 @@ import {
   createDelivery,
   createMerchant,
   createWebhook,
+  getDelivery,
   initDatabase,
   listDueWebhookDeliveryJobs,
   lockWebhookDelivery,
   updateDelivery,
 } from '../db';
+import { processWebhookDeliveryQueue } from '../services/webhook-delivery';
 
 describe('webhook delivery outbox persistence', () => {
   let tempDir: string;
@@ -25,6 +27,7 @@ describe('webhook delivery outbox persistence', () => {
   afterEach(() => {
     closeDb();
     vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
     fs.rmSync(tempDir, { recursive: true, force: true });
   });
 
@@ -88,5 +91,46 @@ describe('webhook delivery outbox persistence', () => {
     });
 
     expect(listDueWebhookDeliveryJobs(10)).toHaveLength(0);
+  });
+
+  it('resumes a failed delivery from SQLite after database restart', async () => {
+    const merchant = createMerchant('Webhook Restart Merchant');
+    const webhook = createWebhook({
+      id: 'wh-resume',
+      url: 'https://example.com/webhook',
+      events: ['invoice.paid'],
+      secret: 'whsec_test',
+      merchantId: merchant.id,
+    });
+    createDelivery({
+      id: 'del-resume',
+      webhookId: webhook.id,
+      event: 'invoice.paid',
+      url: webhook.url,
+      payload: { id: 'inv-1', status: 'paid' },
+    });
+
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce({ status: 500 }));
+    let summary = await processWebhookDeliveryQueue({ limit: 1 });
+    expect(summary.rescheduled).toBe(1);
+
+    closeDb();
+    await initDatabase();
+    updateDelivery('del-resume', {
+      statusCode: 500,
+      success: false,
+      attempts: 1,
+      error: 'HTTP 500',
+      nextAttemptAt: new Date(Date.now() - 1_000).toISOString(),
+    });
+
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce({ status: 204 }));
+    summary = await processWebhookDeliveryQueue({ limit: 1 });
+
+    const delivery = getDelivery('del-resume');
+    expect(summary.delivered).toBe(1);
+    expect(delivery?.success).toBe(1);
+    expect(delivery?.attempts).toBe(2);
+    expect(delivery?.next_attempt_at).toBeNull();
   });
 });

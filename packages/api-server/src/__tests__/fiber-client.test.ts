@@ -62,6 +62,40 @@ describe('FiberNodeClient live RPC adapter', () => {
     );
   });
 
+  it('fails over to the next RPC URL when the first endpoint is unavailable', async () => {
+    const fetchMock = vi.fn()
+      .mockRejectedValueOnce(new Error('primary unavailable'))
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        json: vi.fn().mockResolvedValue({
+          jsonrpc: '2.0',
+          id: 1,
+          result: { node_id: 'backup-node', version: '0.8.1' },
+        }),
+      });
+    vi.stubGlobal('fetch', fetchMock);
+    const client = new FiberNodeClient({
+      rpcUrl: 'http://primary:8227',
+      rpcUrls: ['http://primary:8227', 'http://backup:8227'],
+    });
+
+    const result = await client.getNodeInfo();
+
+    expect(result.node_id).toBe('backup-node');
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      'http://primary:8227',
+      expect.objectContaining({ method: 'POST' }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      'http://backup:8227',
+      expect.objectContaining({ method: 'POST' }),
+    );
+  });
+
   it('creates invoices with current new_invoice method shape', async () => {
     const fetchMock = mockRpcResult({ invoice_address: 'fibt1invoice...' });
     const client = new FiberNodeClient({

@@ -35,6 +35,8 @@ import type {
   WebhookEndpoint,
   RegisterWebhookRequest,
   WebhookDelivery,
+  WebhookDeliveryRunResult,
+  WebhookDeliveryWorkerStatus,
   WebhookRetryResponse,
   WebhookTestResponse,
   Transaction,
@@ -44,6 +46,8 @@ import type {
   MerchantStats,
   ApiKey,
   PaginatedResponse,
+  MerchantAuthContext,
+  ApiKeyRotationResponse,
 } from './types';
 
 export class MerchantClient {
@@ -54,6 +58,7 @@ export class MerchantClient {
   public readonly balance: BalanceResource;
   public readonly fiber: FiberResource;
   public readonly stats: StatsResource;
+  public readonly auth: AuthResource;
 
   constructor(options: MerchantClientOptions) {
     const { baseUrl, apiKey, timeout = 30_000 } = options;
@@ -76,6 +81,7 @@ export class MerchantClient {
     this.balance = new BalanceResource(this.fetch);
     this.fiber = new FiberResource(this.fetch);
     this.stats = new StatsResource(this.fetch);
+    this.auth = new AuthResource(this.fetch);
   }
 
   /** Health check — verify the API server is reachable */
@@ -180,6 +186,33 @@ class WebhookResource {
   /** Test a webhook by sending a test event */
   async test(id: string): Promise<WebhookTestResponse> {
     return this.fetch(`/webhooks/${id}/test`, { method: 'POST' });
+  }
+
+  /** Get durable webhook delivery worker status */
+  async getDeliveryWorkerStatus(): Promise<WebhookDeliveryWorkerStatus> {
+    return this.fetch('/webhooks/delivery-worker/status');
+  }
+
+  /** Run one durable webhook delivery queue tick immediately */
+  async runDeliveryWorker(limit?: number): Promise<WebhookDeliveryRunResult> {
+    return this.fetch('/webhooks/delivery-worker/run', {
+      method: 'POST',
+      body: limit ? { limit } : undefined,
+    });
+  }
+}
+
+class AuthResource {
+  constructor(private fetch: $Fetch) {}
+
+  /** Get the authenticated merchant API key context and permissions */
+  async me(): Promise<MerchantAuthContext> {
+    return this.fetch('/auth/me');
+  }
+
+  /** Rotate the current merchant API key. The returned key replaces the current Bearer token. */
+  async rotateApiKey(): Promise<ApiKeyRotationResponse> {
+    return this.fetch('/auth/api-key/rotate', { method: 'POST' });
   }
 }
 

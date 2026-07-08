@@ -4,6 +4,20 @@ Base URL: `http://localhost:3001/api/v1`
 Authentication: `Authorization: Bearer fm_sk_...`
 Machine-readable contract: [openapi.json](openapi.json)
 
+## Auth Context
+
+### Current Merchant
+
+`GET /auth/me`
+
+Returns the authenticated merchant API key context, role, permissions, and active merchant users.
+
+### Rotate API Key
+
+`POST /auth/api-key/rotate`
+
+Rotates the current merchant API key. Requires an `owner` or `admin` role. The returned key replaces the previous bearer token.
+
 ## Public Discovery
 
 These endpoints are unauthenticated and safe to open during local review.
@@ -261,6 +275,42 @@ Queues a fresh delivery attempt using the stored event payload. The original del
 }
 ```
 
+### Webhook Delivery Worker Status
+
+`GET /webhooks/delivery-worker/status`
+
+Returns the durable webhook outbox worker configuration and last run summary.
+
+### Run Webhook Delivery Worker
+
+`POST /webhooks/delivery-worker/run`
+
+Runs one due-delivery queue tick immediately.
+
+**Request:**
+```json
+{
+  "limit": 25
+}
+```
+
+**Response:**
+```json
+{
+  "trigger": "manual",
+  "startedAt": "2026-07-08T12:00:00Z",
+  "finishedAt": "2026-07-08T12:00:01Z",
+  "summary": {
+    "checked": 2,
+    "delivered": 1,
+    "rescheduled": 1,
+    "failed": 0,
+    "skipped": 0,
+    "errors": 0
+  }
+}
+```
+
 ### Test Webhook
 
 `POST /webhooks/:id/test`
@@ -324,6 +374,7 @@ Queues a fresh delivery attempt using the stored event payload. The original del
 `GET /fiber/status`
 
 Returns a normalized view of the connected Fiber node, channels, and background invoice settlement worker. The endpoint never exposes Fiber RPC credentials.
+When `FIBER_NODE_RPC_URLS` is configured, the response includes sanitized per-endpoint reachability.
 
 **Response:**
 ```json

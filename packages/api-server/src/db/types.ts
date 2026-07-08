@@ -9,9 +9,22 @@ export interface DbMerchant {
   id: string;
   api_key: string;
   label: string | null;
+  role?: MerchantRole;
   active: number;
   created_at: string;
   last_used_at: string | null;
+}
+
+export type MerchantRole = 'owner' | 'admin' | 'developer' | 'viewer';
+
+export interface DbMerchantUser {
+  id: string;
+  merchant_id: string;
+  email: string;
+  name: string | null;
+  role: MerchantRole;
+  active: number;
+  created_at: string;
 }
 
 export interface DbInvoice {
