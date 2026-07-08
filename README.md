@@ -1,50 +1,59 @@
 # Fiber Merchant Kit
 
-Stripe-style merchant infrastructure for the Fiber Network: REST API, webhook delivery, admin dashboard, demo checkout, and TypeScript/Python SDKs.
+Fiber Merchant Kit is a Stripe-style merchant layer for the Fiber Network. It lets a store, SaaS app, game, marketplace, or wallet create Fiber invoices, track settlement, send signed webhooks, inspect operations, and run a checkout demo without exposing Fiber node credentials to browsers.
 
-This repository is organized so hackathon judges can review the product, architecture, and implementation evidence quickly.
+## At A Glance
+
+| Question | Answer |
+|---|---|
+| What is this? | Merchant payment infrastructure for Fiber Network: REST API, dashboard, demo store, webhooks, and TypeScript/Python SDKs |
+| What problem does it solve? | Fiber has fast payment channels, but merchants still need familiar checkout, invoice lifecycle, fulfillment, and operational tooling |
+| Who is it for? | Developers building stores, SaaS billing, games, marketplaces, wallets, and apps that want to accept Fiber payments |
+| What can judges run quickly? | `npm install && npm run dev` starts the API, merchant dashboard, and keyless demo store |
+| What proves live-network readiness? | [docs/testnet-smoke.md](docs/testnet-smoke.md) records real FNN testnet smoke checks plus funded settlement evidence |
 
 ## Judge Fast Path
 
-| Time | What To Open | Why It Matters |
+| Time | Do This | You Should See |
 |---|---|---|
-| 2 minutes | [JUDGES.md](JUDGES.md) | The fastest review path, demo script, and evidence map |
-| 5 minutes | [docs/architecture.md](docs/architecture.md) | System design, data flows, boundaries, and tradeoffs |
-| 10 minutes | [packages/api-server/src/services/invoice-settlement.ts](packages/api-server/src/services/invoice-settlement.ts) and [packages/api-server/src/services/webhook-delivery.ts](packages/api-server/src/services/webhook-delivery.ts) | Core invoice lifecycle and webhook reliability |
-| 15 minutes | Run `npm run dev` | API, dashboard, and demo store running together |
+| 2 minutes | Read [JUDGES.md](JUDGES.md) | Product thesis, demo script, and evidence map |
+| 5 minutes | Skim [docs/architecture.md](docs/architecture.md) | Trust boundary, invoice flow, webhook flow, and Fiber RPC integration |
+| 8 minutes | Run `npm install && npm run dev` | API on `3001`, dashboard on `5173`, demo store on `5174` |
+| 12 minutes | Complete demo-store checkout | A shopper-safe checkout that does not ask for a merchant API key |
+| 15 minutes | Inspect dashboard invoices, webhooks, network, and stats | Merchant operations around invoice lifecycle and fulfillment |
+| Optional | Run [docs/testnet-smoke.md](docs/testnet-smoke.md) | Real FNN RPC readiness and recorded funded Fiber testnet settlement |
 
 ## The Problem It Solves
 
-Fiber Network gives Nervos CKB a fast payment-channel layer, but accepting payments is still too hard for normal merchants and application developers. The raw Fiber node interface is built for node operators and protocol-level integrations, not for an online store, SaaS app, game, marketplace, or wallet team that simply wants to create an invoice and fulfill an order when payment arrives.
+Fiber Network gives Nervos CKB a fast payment-channel layer, but raw Fiber node RPC is not a merchant product. A normal application team does not want to teach its checkout page about channel state, payment hashes, node credentials, webhook retries, or manual settlement checks. It wants the primitives every production payment integration expects: create an invoice, show a payment request, know when it is paid, fulfill the order, and debug failures.
 
-Without a merchant layer, every team that wants to accept Fiber payments has to rebuild the same infrastructure:
+Without a merchant layer, every Fiber payment integration has to rebuild the same missing pieces:
 
 | Missing Piece | Why It Blocks Adoption |
 |---|---|
-| Merchant-friendly invoice API | Raw node RPC requires payment-channel knowledge and does not feel like the payment APIs developers already know |
-| Payment lifecycle tracking | Apps need stable states like `pending`, `paid`, `expired`, `cancelled`, and `refunded` |
-| Webhook notifications | Stores and SaaS products need automatic order fulfillment when a payment settles |
-| Retry and delivery logs | A webhook that fails once should not silently lose a payment event |
-| Dashboard and transaction history | Merchants need to inspect invoices, payments, refunds, balances, and webhook failures |
-| Multi-language SDKs | Integration should be simple from TypeScript and Python apps, not only low-level RPC clients |
-| Local demo path | Judges and developers should be able to test the whole flow without running a real Fiber node |
-
-The result is a real ecosystem gap: Fiber can move value quickly, but developers do not yet have the surrounding merchant infrastructure that turns payment channels into practical checkout flows.
+| Merchant-friendly invoice API | Raw node RPC is protocol-facing, not shaped like familiar payment APIs |
+| Stable payment lifecycle | Apps need clear states such as `pending`, `paid`, `expired`, `cancelled`, and `refunded` |
+| Shopper-safe checkout | Browsers should never receive merchant API keys or Fiber node credentials |
+| Webhook fulfillment | Stores and SaaS products need automatic order fulfillment after settlement |
+| Retry and delivery logs | A failed webhook must be visible, retried, and replayable |
+| Dashboard and transaction history | Merchants need to inspect invoices, balances, payments, refunds, network status, and failures |
+| SDKs and examples | Integration should be simple from TypeScript and Python apps |
+| Local review path | Judges and developers should be able to test the workflow without running a funded Fiber node |
 
 ## The Solution
 
-Fiber Merchant Kit fills that gap with a Stripe-style merchant stack for Fiber Network payments. It wraps Fiber node operations behind a stable REST API, persists merchant state, handles invoice status transitions, sends signed webhooks, provides operational visibility, and ships SDKs plus a runnable demo.
+Fiber Merchant Kit wraps Fiber node operations behind a stable Merchant API, persists merchant state, handles invoice transitions, sends HMAC-signed webhooks, exposes a dashboard, and ships SDKs plus a runnable demo store.
 
 | Merchant Need | Delivered In This Repo |
 |---|---|
-| Create payment requests | REST API and SDK invoice creation |
-| Know when a payment settles | Auto-polling invoice status updates and idempotent state transitions |
-| Fulfill orders automatically | HMAC-signed webhooks with retry, delivery logs, and payload inspection |
-| Debug payment operations | Dashboard views for invoices, transactions, balances, webhook logs, and Fiber node status |
-| Integrate quickly | TypeScript SDK and Python SDK |
-| Evaluate without infrastructure | Demo Fiber client mode and demo storefront |
+| Create payment requests | REST API, SDK invoice creation, and server-side demo-store checkout |
+| Know when payment settles | Invoice polling, background settlement worker, and idempotent state transitions |
+| Fulfill orders automatically | Signed webhooks with retry, delivery logs, queue status, and manual replay |
+| Debug operations | Dashboard views for invoices, transactions, balances, webhook logs, and Fiber node status |
+| Integrate quickly | TypeScript SDK, Python SDK, OpenAPI contract, and examples |
+| Evaluate safely | Demo Fiber client mode plus documented real FNN testnet smoke path |
 
-In practical terms, this project lets a developer go from "I have a Fiber node" to "my app can accept, track, and react to Fiber payments" with familiar merchant primitives.
+In practical terms, this project turns "I have a Fiber node" into "my app can accept, track, and react to Fiber payments" with familiar merchant primitives.
 
 ## Architecture At A Glance
 
@@ -117,29 +126,46 @@ Or use the platform scripts:
 .\start.ps1
 ```
 
-Environment templates are checked in at [.env.example](.env.example) and under each package. The platform scripts copy the package templates to `.env` files and load `packages/api-server/.env`; direct `npm run dev` users can export the same variables in their shell.
-
-The dev command starts:
+The root dev command starts all judge-facing services:
 
 | Service | URL | Role |
 |---|---|---|
 | API Server | http://localhost:3001 | Browser-friendly server index, REST API, and webhook engine |
 | Admin Dashboard | http://localhost:5173 | Merchant operations UI |
-| Demo Store | http://localhost:5174 | Checkout demo |
+| Demo Store | http://localhost:5174 | Keyless shopper checkout demo |
 
-When the API server starts, copy the printed `fm_sk_...` API key and use it in the dashboard.
+Environment templates are checked in at [.env.example](.env.example) and under each package. The platform scripts copy package templates to `.env` files and load `packages/api-server/.env`; direct `npm run dev` users can export the same variables in their shell.
 
-## Demo Flow
+## API Keys In The Demo
 
-1. Open the dashboard and paste the demo API key.
-2. Create an invoice from the dashboard.
-3. Open the invoice detail page and poll/refresh status.
-4. Inspect the Network page for node, channel, and settlement worker status.
-5. Register a webhook endpoint and send a test event.
-6. Open the demo store, add products, and start checkout without pasting a merchant API key.
-7. Use the demo payment action to complete checkout, then confirm the paid invoice in the dashboard.
+| Surface | Needs `fm_sk_...`? | Why |
+|---|---:|---|
+| Admin dashboard | Yes | It is the merchant back office and uses authenticated API routes |
+| TypeScript/Python SDKs | Yes | They act as a merchant backend integration |
+| Demo Store / FiberStore shopper checkout | No | Checkout calls a public server-side demo route so shoppers never see the merchant key |
 
-Demo mode works without a real Fiber node. For testnet/production, set `FIBER_NODE_RPC_URL` or comma-separated `FIBER_NODE_RPC_URLS` plus either `FIBER_NODE_RPC_AUTH_TOKEN` for protected Fiber RPC endpoints or `FIBER_NODE_RPC_USER`/`FIBER_NODE_RPC_PASSWORD` for private basic-auth setups. See [docs/testnet-smoke.md](docs/testnet-smoke.md) for RPC smoke checks and [docs/deployment.md](docs/deployment.md) for Docker/failover notes.
+When the API server starts, copy the latest printed `Demo Merchant API Key: fm_sk_...` value and paste it into the dashboard. If the dashboard says the key is invalid, the API server was probably restarted and minted a new demo key; copy the latest one from the server logs.
+
+## Local Demo Flow
+
+1. Start the repo with `npm run dev`.
+2. Open http://localhost:3001 and confirm the server index, API discovery, and health links.
+3. Open http://localhost:5173, paste the `fm_sk_...` key from the API logs, and create an invoice.
+4. Open the invoice detail page and refresh/poll status.
+5. Inspect the Network page for Fiber node, channel, endpoint, and settlement worker status.
+6. Register a webhook endpoint, send a test event, inspect delivery logs, and replay a failed delivery if present.
+7. Open http://localhost:5174, add products, and start checkout without entering a merchant API key.
+8. In demo mode, use the payment simulation action to mark the checkout paid, then confirm the paid invoice and transaction in the dashboard.
+
+## Demo Mode vs Live FNN Testnet
+
+| Mode | What It Proves | What You Need |
+|---|---|---|
+| Demo mode | Merchant UX, invoice lifecycle, signed webhooks, transactions, stats, and checkout fulfillment | Node.js and npm only |
+| Live FNN testnet smoke | The API can talk to a real Fiber node and create real testnet invoices | `FIBER_NODE_RPC_URL`, `FIBER_NODE_CURRENCY=Fibt`, and optional RPC auth |
+| Funded settlement | A real Fiber payment can route and settle | A separate funded payer node/channel; invoice creation alone is not enough |
+
+For testnet or production, set `FIBER_NODE_RPC_URL` or comma-separated `FIBER_NODE_RPC_URLS` plus either `FIBER_NODE_RPC_AUTH_TOKEN` for protected Fiber RPC endpoints or `FIBER_NODE_RPC_USER`/`FIBER_NODE_RPC_PASSWORD` for private basic-auth setups. See [docs/testnet-smoke.md](docs/testnet-smoke.md) for RPC smoke checks and [docs/deployment.md](docs/deployment.md) for Docker/failover notes.
 
 ## Core Technical Decisions
 
@@ -244,15 +270,15 @@ The project includes route tests, validation tests, SDK tests, strict TypeScript
 
 Useful commands:
 
-```bash
-npm run demo:smoke
-npm run test --workspaces --if-present
-npm run lint --workspaces --if-present
-npm run build --workspaces
-npm run testnet:smoke
-docker compose --profile postgres config
-docker build --target api -t fiber-merchant-kit-api:local .
-```
+| Command | What It Verifies |
+|---|---|
+| `npm run demo:smoke` | Local end-to-end API, invoice, signed webhook, simulated payment, stats, and settlement sweep |
+| `npm run test --workspaces --if-present` | Unit and route tests across workspaces |
+| `npm run lint --workspaces --if-present` | Lint checks |
+| `npm run build --workspaces` | TypeScript builds for API, SDK, dashboard, and demo store |
+| `npm run testnet:smoke` | Real FNN RPC smoke path when `FIBER_NODE_RPC_URL` is configured |
+| `docker compose --profile postgres config` | Production Compose configuration, including PostgreSQL profile |
+| `docker build --target api -t fiber-merchant-kit-api:local .` | Production API Docker image build |
 
 `npm run demo:smoke` starts the API in isolated demo mode with a temporary SQLite database and local webhook receiver. It verifies the public index, health endpoint, invoice creation, HMAC-signed webhooks, demo payment simulation, transaction recording, stats, and manual settlement sweep.
 
