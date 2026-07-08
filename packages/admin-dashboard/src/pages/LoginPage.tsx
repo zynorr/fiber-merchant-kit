@@ -16,8 +16,9 @@ export default function LoginPage({ onLogin, baseUrl, notice }: LoginPageProps) 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    const normalizedKey = key.trim();
 
-    if (!key.startsWith('fm_sk_')) {
+    if (!normalizedKey.startsWith('fm_sk_')) {
       setError('Invalid API key format. Key should start with "fm_sk_"');
       return;
     }
@@ -25,11 +26,11 @@ export default function LoginPage({ onLogin, baseUrl, notice }: LoginPageProps) 
     setLoading(true);
     try {
       const res = await fetch(`${baseUrl}/api/v1/stats`, {
-        headers: { Authorization: `Bearer ${key}` },
+        headers: { Authorization: `Bearer ${normalizedKey}` },
       });
       if (res.ok) {
-        localStorage.setItem('fm_api_key', key);
-        onLogin(key);
+        localStorage.setItem('fm_api_key', normalizedKey);
+        onLogin(normalizedKey);
       } else {
         setError('Invalid API key. Server rejected the request.');
       }
