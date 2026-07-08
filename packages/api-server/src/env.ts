@@ -66,6 +66,31 @@ const envSchema = z.object({
       'FIBER_SETTLEMENT_WORKER_BATCH_SIZE must be a positive integer',
     ),
 
+  // Webhook Delivery Worker
+  WEBHOOK_DELIVERY_WORKER: z
+    .string()
+    .optional()
+    .refine(
+      (v) => v === undefined || ['true', 'false'].includes(v.toLowerCase()),
+      'WEBHOOK_DELIVERY_WORKER must be "true" or "false"',
+    ),
+
+  WEBHOOK_DELIVERY_WORKER_INTERVAL_MS: z
+    .string()
+    .optional()
+    .refine(
+      (v) => v === undefined || (!isNaN(parseInt(v, 10)) && parseInt(v, 10) > 0),
+      'WEBHOOK_DELIVERY_WORKER_INTERVAL_MS must be a positive integer (milliseconds)',
+    ),
+
+  WEBHOOK_DELIVERY_WORKER_BATCH_SIZE: z
+    .string()
+    .optional()
+    .refine(
+      (v) => v === undefined || (!isNaN(parseInt(v, 10)) && parseInt(v, 10) > 0),
+      'WEBHOOK_DELIVERY_WORKER_BATCH_SIZE must be a positive integer',
+    ),
+
   // CORS
   CORS_ORIGIN: z.string().optional(),
 

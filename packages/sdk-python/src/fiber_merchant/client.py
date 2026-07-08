@@ -94,6 +94,7 @@ class WebhookDelivery:
     payload: Any = None
     webhook_id: Optional[str] = None
     error: Optional[str] = None
+    next_attempt_at: Optional[str] = None
     delivered_at: Optional[str] = None
 
     @classmethod

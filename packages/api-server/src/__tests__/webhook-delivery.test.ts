@@ -1,9 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DbWebhook, DbWebhookDelivery } from '../db/types';
-import { replayWebhookDelivery } from '../services/webhook-delivery';
+import { processWebhookDeliveryQueue, replayWebhookDelivery } from '../services/webhook-delivery';
 
 const mockDb = vi.hoisted(() => ({
   createDelivery: vi.fn(),
+  getWebhookDeliveryJob: vi.fn(),
+  listDueWebhookDeliveryJobs: vi.fn(),
+  lockWebhookDelivery: vi.fn(),
   updateDelivery: vi.fn(),
   listWebhooks: vi.fn(),
 }));
@@ -47,12 +50,17 @@ describe('webhook delivery service', () => {
       ...original,
       id: 'del-retry',
       status_code: null,
+      success: 0,
       attempts: null,
       error: null,
+      next_attempt_at: '2026-07-04T12:06:00Z',
+      locked_at: null,
       delivered_at: '2026-07-04T12:06:00Z',
     };
 
     mockDb.createDelivery.mockReturnValue(fresh);
+    mockDb.getWebhookDeliveryJob.mockReturnValue({ ...fresh, secret: webhook.secret });
+    mockDb.lockWebhookDelivery.mockReturnValue(true);
 
     const replay = replayWebhookDelivery(webhook, original);
 
@@ -87,7 +95,43 @@ describe('webhook delivery service', () => {
         statusCode: 200,
         success: true,
         attempts: 1,
+        nextAttemptAt: null,
       });
     });
+  });
+
+  it('reschedules failed deliveries instead of sleeping in memory', async () => {
+    const job = {
+      id: 'del-failed',
+      webhook_id: 'wh-1',
+      event: 'invoice.paid',
+      url: 'https://example.com/hook',
+      status_code: null,
+      success: 0,
+      attempts: 0,
+      payload: JSON.stringify({ id: 'inv-1', status: 'paid' }),
+      error: null,
+      next_attempt_at: new Date().toISOString(),
+      locked_at: null,
+      delivered_at: '2026-07-04T12:06:00Z',
+      secret: 'whsec_test',
+    };
+
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ status: 500 }));
+    mockDb.listDueWebhookDeliveryJobs.mockReturnValue([job]);
+    mockDb.getWebhookDeliveryJob.mockReturnValue(job);
+    mockDb.lockWebhookDelivery.mockReturnValue(true);
+
+    const summary = await processWebhookDeliveryQueue({ limit: 1 });
+
+    expect(summary.checked).toBe(1);
+    expect(summary.rescheduled).toBe(1);
+    expect(mockDb.updateDelivery).toHaveBeenCalledWith('del-failed', expect.objectContaining({
+      statusCode: 500,
+      success: false,
+      attempts: 1,
+      error: 'HTTP 500',
+      nextAttemptAt: expect.any(String),
+    }));
   });
 });

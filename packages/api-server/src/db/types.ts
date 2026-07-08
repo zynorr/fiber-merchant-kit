@@ -56,7 +56,13 @@ export interface DbWebhookDelivery {
   attempts: number | null;
   payload: string | null;
   error: string | null;
+  next_attempt_at?: string | null;
+  locked_at?: string | null;
   delivered_at: string;
+}
+
+export interface DbWebhookDeliveryJob extends DbWebhookDelivery {
+  secret: string;
 }
 
 export interface DbTransaction {

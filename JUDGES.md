@@ -112,7 +112,7 @@ In demo mode, the store exposes a payment simulation action so judges can comple
 | Fiber network status API | `packages/api-server/src/services/fiber-status.ts`, `packages/api-server/src/routes/merchant.ts` |
 | Idempotent DB transitions | `packages/api-server/src/db/index.ts` |
 | Fiber RPC wrapper and demo mode | `packages/api-server/src/services/fiber-client.ts` |
-| Webhook retry/signing/logs/replay | `packages/api-server/src/services/webhook-delivery.ts`, `packages/admin-dashboard/src/pages/WebhooksPage.tsx` |
+| Webhook outbox/retry/signing/logs/replay | `packages/api-server/src/services/webhook-delivery.ts`, `packages/api-server/src/db/index.ts`, `packages/admin-dashboard/src/pages/WebhooksPage.tsx` |
 | Webhook API and delivery log response | `packages/api-server/src/routes/webhooks.ts` |
 | OpenAPI contract | `docs/openapi.json` |
 | Dashboard workflows | `packages/admin-dashboard/src/pages` |
@@ -127,6 +127,7 @@ In demo mode, the store exposes a payment simulation action so judges can comple
 | Merchant-scoped queries | Prevents one API key from reading another merchant's invoices/webhooks |
 | Idempotency keys | Duplicate checkout submissions replay the first invoice instead of creating double payment requests |
 | Idempotent payment transition | Repeated invoice polling does not create duplicate successful transactions |
+| Durable webhook outbox | Failed events keep `nextAttemptAt` retry state in SQLite instead of disappearing in process memory |
 | Webhook delivery shape | API returns clean camelCase delivery logs instead of raw DB rows |
 | Retry semantics | Non-2xx responses and network errors are both retried |
 | Manual replay | Failed delivery payloads can be re-queued without mutating the original log |
@@ -172,7 +173,7 @@ The current architecture is intentionally hackathon-friendly and production-shap
 | Current Choice | Production Evolution |
 |---|---|
 | sql.js SQLite | PostgreSQL adapter |
-| In-process webhook retry | Durable queue workers and scheduling |
+| SQLite webhook outbox with in-process worker | External queue workers and scheduling for multi-instance deployments |
 | Single API key auth | Merchant users, teams, RBAC |
 | In-process settlement worker | Durable queue worker for multi-instance deployments |
 | Demo mode | Real Fiber node deployment |

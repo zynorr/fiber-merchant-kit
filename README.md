@@ -150,6 +150,7 @@ Demo mode works without a real Fiber node. For testnet/production, set `FIBER_NO
 | Idempotency keys for invoice creation | Duplicate checkout submits return the original invoice instead of creating a second payment request |
 | Idempotent invoice transitions | Repeated status polling should not duplicate successful transactions |
 | HMAC-signed webhooks | Lets merchants verify events came from their payment server |
+| Durable webhook outbox | Failed delivery attempts keep retry timing in SQLite so events resume after restart |
 | Retry on non-2xx and network errors | Matches real webhook reliability expectations |
 | Manual webhook replay | Lets operators retry a failed delivery from the API or dashboard |
 | Background settlement worker | Live-mode invoices reconcile even when nobody is viewing the invoice page |
@@ -257,7 +258,7 @@ Demo mode is intentionally frictionless for judging. For production:
 |---|---|---|
 | Persistence | SQLite via sql.js | PostgreSQL adapter for horizontal scale |
 | Auth | API key bearer tokens | Merchant users and RBAC |
-| Webhooks | Signed delivery, retry logs, and manual replay | Durable background queue |
+| Webhooks | Signed delivery, SQLite outbox retries, retry logs, and manual replay | External queue workers for horizontal scale |
 | Fiber RPC | Current FNN RPC wrapper, bearer/basic auth, demo mode, status endpoint, and testnet smoke command | Node health alerting and multi-node failover |
 
 ## Links

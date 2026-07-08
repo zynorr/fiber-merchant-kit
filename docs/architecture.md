@@ -8,7 +8,7 @@ Fiber Merchant Kit turns low-level Fiber Network Node RPC into merchant-grade pa
 
 - A REST API for invoices, refunds, transactions, channel balances, stats, and webhooks.
 - A durable local database for merchant state.
-- A webhook delivery engine with HMAC signatures, retries, delivery logs, and manual replay.
+- A webhook delivery engine with HMAC signatures, SQLite-backed retry state, delivery logs, and manual replay.
 - A live-mode settlement worker plus admin network status view for operating real Fiber nodes.
 - Admin and demo frontends for operating and demonstrating the flow.
 - TypeScript and Python SDKs for application integration.
@@ -161,17 +161,18 @@ sequenceDiagram
   participant DB as SQLite
   participant Target as Merchant Webhook URL
 
-  Hook->>DB: Create delivery log
+  Hook->>DB: Create due outbox delivery row
+  Hook->>DB: Lock due delivery row
   Hook->>Target: POST signed event
   alt 2xx
-    Hook->>DB: Mark success
+    Hook->>DB: Mark success and clear retry state
   else non-2xx or network error
-    Hook->>DB: Record failure attempt
-    Hook->>Hook: Backoff and retry
+    Hook->>DB: Record attempt and next_attempt_at
+    Hook->>DB: Worker claims row when retry is due
   end
   opt Operator replay
     Hook->>DB: Create fresh delivery log from stored payload
-    Hook->>Target: POST signed event again
+    Hook->>DB: Queue fresh delivery row
   end
 ```
 
@@ -185,7 +186,7 @@ Why this matters: webhook failures are visible, retried, and replayable. The das
 | `invoices` | Payment requests, Fiber payment hash, invoice address, status timestamps |
 | `transactions` | Incoming/outgoing payment history connected to invoices |
 | `webhooks` | Registered merchant webhook endpoints and event subscriptions |
-| `webhook_deliveries` | Delivery attempts, HTTP status, success flag, error, payload |
+| `webhook_deliveries` | Delivery attempts, HTTP status, success flag, error, payload, retry timing, and lock state |
 | `idempotency_keys` | Replay records for duplicate mutation requests such as checkout invoice creation |
 
 ## API Contract Shape
@@ -220,6 +221,7 @@ This keeps SQLite simple while giving JS and Python clients a predictable public
 | Idempotent invoice state updates | Polling is repeated by nature; repeated reads must not duplicate writes |
 | Idempotency key conflict detection | Reused checkout keys must match the original request body before replaying an invoice |
 | Promote pending incoming transaction | Keeps one canonical transaction for one invoice payment |
+| SQLite-backed webhook outbox | Failed webhook attempts survive process restarts and can be resumed by the worker |
 | Retry webhook non-2xx responses | HTTP 500 is a delivery failure, not a successful attempt |
 | Replay webhook deliveries as new rows | Operators need a clean audit trail when re-sending a failed event |
 | Background settlement worker | Live-mode invoices can settle without a user opening each invoice |
@@ -262,7 +264,7 @@ Judges can inspect these files to validate the architecture:
 |---|---|---|
 | SQLite/sql.js instead of hosted DB | Zero-config setup and easy judging | PostgreSQL adapter |
 | In-process settlement worker | Easy to inspect and enough for one API server | Durable queue worker for multi-instance deployments |
-| In-process webhook retry | Easy to inspect and test | Durable queue workers and scheduling |
+| SQLite webhook outbox with in-process worker | Easy to inspect and enough for one API server | External queue workers and scheduling for multi-instance deployments |
 | Single API key auth model | Fits demo merchant workflow | Merchant users, teams, RBAC |
 | Demo Fiber client | Makes the project runnable by anyone | Real Fiber node deployment |
 

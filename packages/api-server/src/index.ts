@@ -16,6 +16,7 @@ import { createApp } from './app';
 import { initDatabase, closeDb, seedDemoMerchant } from './db';
 import { validateEnv, formatWarnings } from './env';
 import { startSettlementWorker, stopSettlementWorker } from './services/settlement-worker';
+import { startWebhookDeliveryWorker, stopWebhookDeliveryWorker } from './services/webhook-delivery';
 
 function getServerMode(rpcUrl?: string): string {
   return rpcUrl && rpcUrl !== 'demo' ? 'Live (Fiber Node)' : 'Demo';
@@ -61,6 +62,7 @@ async function main() {
   +----------------------------------------------+
     `);
     startSettlementWorker();
+    startWebhookDeliveryWorker();
   });
 
   // -- Graceful Shutdown -----------------------------------------
@@ -68,6 +70,7 @@ async function main() {
   function shutdown(signal: string) {
     console.log(`\n  Received ${signal}. Shutting down gracefully...`);
     stopSettlementWorker();
+    stopWebhookDeliveryWorker();
     server.close(() => {
       closeDb();
       console.log('  Server shut down. Database saved and closed.');
@@ -88,6 +91,7 @@ async function main() {
     console.error('[Server] Uncaught exception:', err);
     // Use exit code 1 for uncaught errors to signal failure
     stopSettlementWorker();
+    stopWebhookDeliveryWorker();
     server.close(() => {
       closeDb();
       process.exit(1);

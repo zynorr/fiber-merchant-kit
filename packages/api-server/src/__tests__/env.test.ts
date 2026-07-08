@@ -189,6 +189,28 @@ describe('validateEnv', () => {
     expect(warnings.filter((w) => w.field === 'RATE_LIMIT_WINDOW_MS')).toHaveLength(0);
   });
 
+  it('accepts webhook delivery worker settings', () => {
+    vi.stubEnv('WEBHOOK_DELIVERY_WORKER', 'false');
+    vi.stubEnv('WEBHOOK_DELIVERY_WORKER_INTERVAL_MS', '5000');
+    vi.stubEnv('WEBHOOK_DELIVERY_WORKER_BATCH_SIZE', '25');
+
+    const { warnings } = validateEnv();
+
+    expect(warnings.filter((w) => w.field.startsWith('WEBHOOK_DELIVERY_WORKER'))).toHaveLength(0);
+  });
+
+  it('errors on invalid webhook delivery worker settings', () => {
+    vi.stubEnv('WEBHOOK_DELIVERY_WORKER', 'sometimes');
+    vi.stubEnv('WEBHOOK_DELIVERY_WORKER_INTERVAL_MS', '-1');
+    vi.stubEnv('WEBHOOK_DELIVERY_WORKER_BATCH_SIZE', '0');
+
+    const { warnings } = validateEnv();
+
+    expect(warnings.find((w) => w.field === 'WEBHOOK_DELIVERY_WORKER')?.severity).toBe('error');
+    expect(warnings.find((w) => w.field === 'WEBHOOK_DELIVERY_WORKER_INTERVAL_MS')?.severity).toBe('error');
+    expect(warnings.find((w) => w.field === 'WEBHOOK_DELIVERY_WORKER_BATCH_SIZE')?.severity).toBe('error');
+  });
+
   it('accepts demo as FIBER_NODE_RPC_URL in development without validation', () => {
     vi.stubEnv('FIBER_NODE_RPC_URL', 'demo');
     const { warnings } = validateEnv();

@@ -29,6 +29,9 @@ Copy `.env.example` to `.env` when using the platform start scripts. If you run 
 | FIBER_SETTLEMENT_WORKER | live mode default | Set `true` or `false` to force the background invoice settlement worker on or off |
 | FIBER_SETTLEMENT_WORKER_INTERVAL_MS | 30000 | Worker polling interval in milliseconds |
 | FIBER_SETTLEMENT_WORKER_BATCH_SIZE | 25 | Maximum open invoices checked per worker tick |
+| WEBHOOK_DELIVERY_WORKER | true | Set `false` to disable the durable webhook delivery queue worker |
+| WEBHOOK_DELIVERY_WORKER_INTERVAL_MS | 5000 | Webhook queue polling interval in milliseconds |
+| WEBHOOK_DELIVERY_WORKER_BATCH_SIZE | 25 | Maximum due webhook deliveries processed per worker tick |
 | CORS_ORIGIN | * | Allowed CORS origin |
 | FIBER_MERCHANT_DB_PATH | ./data/merchant.db | SQLite database path |
 
@@ -94,3 +97,4 @@ Full human reference: `../../docs/api-reference.md`. Machine-readable OpenAPI co
 ```
 
 Webhook signature: `X-Fiber-Signature` header with HMAC-SHA256 of the body.
+Failed deliveries are stored in a durable SQLite outbox with `nextAttemptAt` retry timing, so the worker can resume them after restart.

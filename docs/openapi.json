@@ -1438,6 +1438,12 @@
             "type": "string",
             "nullable": true
           },
+          "nextAttemptAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time",
+            "description": "When the durable webhook queue will retry this delivery, or null when no retry is scheduled."
+          },
           "deliveredAt": {
             "type": "string",
             "format": "date-time"

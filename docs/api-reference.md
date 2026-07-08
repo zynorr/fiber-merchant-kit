@@ -221,6 +221,7 @@ Only paid invoices can be refunded. Initiates a payment back to the original pay
     "status": 200,
     "success": true,
     "attempts": 1,
+    "nextAttemptAt": null,
     "payload": {
       "id": "invoice-uuid",
       "status": "paid"
@@ -249,6 +250,7 @@ Queues a fresh delivery attempt using the stored event payload. The original del
     "status": 0,
     "success": false,
     "attempts": 0,
+    "nextAttemptAt": "2026-07-04T12:07:00Z",
     "payload": {
       "id": "invoice-uuid",
       "status": "paid"

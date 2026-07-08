@@ -112,6 +112,7 @@ export interface WebhookDelivery {
   attempts: number;
   payload: unknown;
   error?: string;
+  nextAttemptAt?: string;
   deliveredAt: string;
 }
 

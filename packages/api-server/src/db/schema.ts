@@ -63,9 +63,11 @@ export const SCHEMA_SQL = `
     url TEXT NOT NULL,
     status_code INTEGER,
     success INTEGER NOT NULL DEFAULT 0,
-    attempts INTEGER DEFAULT 1,
+    attempts INTEGER DEFAULT 0,
     payload TEXT, -- JSON
     error TEXT,
+    next_attempt_at TEXT DEFAULT (datetime('now')),
+    locked_at TEXT,
     delivered_at TEXT DEFAULT (datetime('now')),
     FOREIGN KEY (webhook_id) REFERENCES webhooks(id)
   );

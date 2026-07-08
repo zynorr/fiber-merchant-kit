@@ -47,6 +47,7 @@ function formatDelivery(delivery: DbWebhookDelivery): Record<string, unknown> {
     attempts: delivery.attempts || 0,
     payload,
     error: delivery.error,
+    nextAttemptAt: delivery.next_attempt_at || null,
     deliveredAt: delivery.delivered_at,
   };
 }

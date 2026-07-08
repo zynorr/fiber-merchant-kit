@@ -14,6 +14,7 @@ import type {
   DbInvoice,
   DbWebhook,
   DbWebhookDelivery,
+  DbWebhookDeliveryJob,
   DbTransaction,
   DbIdempotencyKey,
   PaginatedResult,
@@ -54,12 +55,38 @@ function parseMetadata<T extends { metadata?: unknown }>(row: T): T {
   return row;
 }
 
+function hasColumn(table: string, column: string): boolean {
+  const rows = db.prepare(`PRAGMA table_info(${table})`).all<{ name: string }>();
+  return rows.some((row) => row.name === column);
+}
+
+function addColumnIfMissing(table: string, column: string, definition: string): void {
+  if (!hasColumn(table, column)) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+  }
+}
+
+function runSchemaMigrations(): void {
+  addColumnIfMissing('webhook_deliveries', 'next_attempt_at', 'TEXT');
+  addColumnIfMissing('webhook_deliveries', 'locked_at', 'TEXT');
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_webhook_deliveries_due
+    ON webhook_deliveries(success, next_attempt_at, locked_at, attempts)
+  `);
+  db.exec(`
+    UPDATE webhook_deliveries
+    SET next_attempt_at = COALESCE(next_attempt_at, datetime('now'))
+    WHERE success = 0
+  `);
+}
+
 /** Initialise the database (must be called once before any query) */
 export async function initDatabase(): Promise<void> {
   const dbPath = process.env.FIBER_MERCHANT_DB_PATH || path.join(process.cwd(), 'data', 'merchant.db');
   db = new DbWrapper(dbPath);
   await db.init();
   db.exec(SCHEMA_SQL);
+  runSchemaMigrations();
 }
 
 export function getDb(): DbWrapper {
@@ -337,16 +364,75 @@ export function createDelivery(data: {
 }): DbWebhookDelivery {
   const d = getDb();
   d.prepare(`
-    INSERT INTO webhook_deliveries (id, webhook_id, event, url, payload)
-    VALUES (?, ?, ?, ?, ?)
+    INSERT INTO webhook_deliveries (id, webhook_id, event, url, payload, success, attempts, next_attempt_at, locked_at)
+    VALUES (?, ?, ?, ?, ?, 0, 0, datetime('now'), NULL)
   `).run(data.id, data.webhookId, data.event, data.url, JSON.stringify(data.payload));
   return d.prepare('SELECT * FROM webhook_deliveries WHERE id = ?').get<DbWebhookDelivery>(data.id)!;
 }
 
-export function updateDelivery(id: string, data: { statusCode: number; success: boolean; attempts?: number; error?: string }): void {
+export function updateDelivery(id: string, data: {
+  statusCode: number;
+  success: boolean;
+  attempts?: number;
+  error?: string;
+  nextAttemptAt?: string | null;
+}): void {
   getDb().prepare(`
-    UPDATE webhook_deliveries SET status_code = ?, success = ?, attempts = ?, error = ? WHERE id = ?
-  `).run(data.statusCode, data.success ? 1 : 0, data.attempts || 1, data.error || null, id);
+    UPDATE webhook_deliveries
+    SET status_code = ?, success = ?, attempts = ?, error = ?, next_attempt_at = ?, locked_at = NULL
+    WHERE id = ?
+  `).run(
+    data.statusCode,
+    data.success ? 1 : 0,
+    data.attempts ?? 1,
+    data.error || null,
+    data.nextAttemptAt ?? null,
+    id,
+  );
+}
+
+export function getWebhookDeliveryJob(id: string): DbWebhookDeliveryJob | undefined {
+  return getDb().prepare(`
+    SELECT d.*, w.secret
+    FROM webhook_deliveries d
+    JOIN webhooks w ON w.id = d.webhook_id
+    WHERE d.id = ? AND w.active = 1
+  `).get<DbWebhookDeliveryJob>(id);
+}
+
+export function listDueWebhookDeliveryJobs(limit: number, maxAttempts: number = 5): DbWebhookDeliveryJob[] {
+  return getDb().prepare(`
+    SELECT d.*, w.secret
+    FROM webhook_deliveries d
+    JOIN webhooks w ON w.id = d.webhook_id
+    WHERE d.success = 0
+      AND w.active = 1
+      AND COALESCE(d.attempts, 0) < ?
+      AND (
+        d.next_attempt_at IS NULL
+        OR datetime(d.next_attempt_at) <= datetime('now')
+      )
+      AND (
+        d.locked_at IS NULL
+        OR datetime(d.locked_at) <= datetime('now', '-5 minutes')
+      )
+    ORDER BY datetime(COALESCE(d.next_attempt_at, d.delivered_at)) ASC, d.id ASC
+    LIMIT ?
+  `).all<DbWebhookDeliveryJob>(maxAttempts, limit);
+}
+
+export function lockWebhookDelivery(id: string): boolean {
+  const result = getDb().prepare(`
+    UPDATE webhook_deliveries
+    SET locked_at = datetime('now')
+    WHERE id = ?
+      AND success = 0
+      AND (
+        locked_at IS NULL
+        OR datetime(locked_at) <= datetime('now', '-5 minutes')
+      )
+  `).run(id);
+  return result.changes > 0;
 }
 
 export function getDeliveries(webhookId: string, merchantId?: string): DbWebhookDelivery[] {
