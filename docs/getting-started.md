@@ -137,6 +137,16 @@ app.post('/webhooks/fiber', express.raw({ type: 'application/json' }), async (re
 });
 ```
 
+## Local Demo Smoke Test
+
+Run this when you want a deterministic end-to-end check without a real Fiber node:
+
+```bash
+npm run demo:smoke
+```
+
+The smoke test starts the API against a temporary SQLite database, registers a local webhook receiver, creates an invoice, simulates payment, verifies webhook signatures, checks transaction/stats updates, and runs the manual settlement endpoint.
+
 ## Production Setup
 
 For production, set these environment variables:

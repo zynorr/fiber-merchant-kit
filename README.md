@@ -230,11 +230,14 @@ The project includes route tests, validation tests, SDK tests, strict TypeScript
 Useful commands:
 
 ```bash
+npm run demo:smoke
 npm run test --workspaces --if-present
 npm run lint --workspaces --if-present
 npm run build --workspaces
 npm run testnet:smoke
 ```
+
+`npm run demo:smoke` starts the API in isolated demo mode with a temporary SQLite database and local webhook receiver. It verifies the public index, health endpoint, invoice creation, HMAC-signed webhooks, demo payment simulation, transaction recording, stats, and manual settlement sweep.
 
 The testnet smoke command requires a real FNN RPC endpoint and is documented in [docs/testnet-smoke.md](docs/testnet-smoke.md). Without that endpoint, it exits with a clear configuration error instead of pretending demo mode is a chain-backed test.
 

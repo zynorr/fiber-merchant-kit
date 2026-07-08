@@ -15,6 +15,7 @@
     "start": "npm run start -w packages/api-server",
     "test": "npm run test --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
+    "demo:smoke": "npm run demo:smoke -w packages/api-server",
     "testnet:smoke": "npm run testnet:smoke -w packages/api-server"
   },
   "devDependencies": {
