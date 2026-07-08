@@ -94,6 +94,40 @@ describe('API Routes', () => {
     vi.unstubAllEnvs();
   });
 
+  describe('Public discovery routes', () => {
+    it('returns a judge-friendly server index at the root URL', async () => {
+      const res = await request(app).get('/');
+
+      expect(res.status).toBe(200);
+      expect(res.headers['content-type']).toMatch(/html/);
+      expect(res.text).toContain('Fiber Merchant Kit');
+      expect(res.text).toContain('/api/v1/health');
+      expect(res.text).toContain('Admin Dashboard');
+    });
+
+    it('returns API discovery metadata without authentication', async () => {
+      const res = await request(app).get('/api/v1');
+
+      expect(res.status).toBe(200);
+      expect(res.body.name).toBe('Fiber Merchant Kit');
+      expect(res.body.version).toBe('1.0.0');
+      expect(res.body.mode).toBe('demo');
+      expect(res.body.publicEndpoints).toContain('GET /api/v1/health');
+      expect(res.body.authenticatedResources).toContain('invoices');
+      expect(res.body.reviewDocs).toContain('JUDGES.md');
+    });
+
+    it('marks discovery metadata as live when a Fiber RPC URL is configured', async () => {
+      vi.stubEnv('FIBER_NODE_RPC_URL', 'http://localhost:8227');
+      app = createApp();
+
+      const res = await request(app).get('/api/v1');
+
+      expect(res.status).toBe(200);
+      expect(res.body.mode).toBe('live');
+    });
+  });
+
   // ── Health ─────────────────────────────────────────────────
 
   describe('GET /api/v1/health', () => {

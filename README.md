@@ -119,7 +119,7 @@ The dev command starts:
 
 | Service | URL | Role |
 |---|---|---|
-| API Server | http://localhost:3001 | REST API and webhook engine |
+| API Server | http://localhost:3001 | Browser-friendly server index, REST API, and webhook engine |
 | Admin Dashboard | http://localhost:5173 | Merchant operations UI |
 | Demo Store | http://localhost:5174 | Checkout demo |
 
@@ -163,6 +163,9 @@ Important endpoints:
 
 | Endpoint | Purpose |
 |---|---|
+| `GET /` | Public server index for judges and local operators |
+| `GET /api/v1` | Public API discovery metadata |
+| `GET /api/v1/health` | Public health check with Fiber node reachability |
 | `POST /api/v1/invoices` | Create invoice |
 | `GET /api/v1/invoices/:id` | Get invoice and refresh payment status |
 | `POST /api/v1/invoices/:id/simulate-payment` | Demo mode only payment confirmation |

@@ -31,7 +31,7 @@ Demo Merchant API Key: fm_sk_a1b2c3d4e5f6...
 +----------------------------------------------+
 ```
 
-Save your API key.
+Open http://localhost:3001 to see the public server index with API discovery and health links. Save your API key.
 
 ## Step 2: Start the Admin Dashboard
 

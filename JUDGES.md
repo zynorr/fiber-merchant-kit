@@ -68,7 +68,7 @@ Services:
 
 | Service | URL | What To Check |
 |---|---|---|
-| API Server | http://localhost:3001 | Prints demo API key, exposes `/api/v1` |
+| API Server | http://localhost:3001 | Prints demo API key, opens a server index, exposes `/api/v1` |
 | Admin Dashboard | http://localhost:5173 | Paste API key and inspect merchant workflows |
 | Demo Store | http://localhost:5174 | Add items and run checkout |
 
@@ -87,15 +87,16 @@ The same evidence file also includes a funded live testnet settlement completed 
 ## Suggested Demo Script
 
 1. Start the repo and copy the printed `fm_sk_...` API key.
-2. Open the admin dashboard.
-3. Create an invoice.
-4. Open invoice detail and watch status update through polling.
-5. Open the Network page and inspect Fiber node, channel, and settlement worker status.
-6. Click Run Settlement and confirm the activity summary updates.
-7. Register a webhook endpoint.
-8. Send a webhook test event, inspect delivery health, expand the payload, and retry a failed delivery if one is present.
-9. Open the demo store and complete a checkout flow.
-10. Return to dashboard and inspect invoices, transactions, and balances.
+2. Open http://localhost:3001 and confirm the server index, API discovery link, and health link are available.
+3. Open the admin dashboard.
+4. Create an invoice.
+5. Open invoice detail and watch status update through polling.
+6. Open the Network page and inspect Fiber node, channel, and settlement worker status.
+7. Click Run Settlement and confirm the activity summary updates.
+8. Register a webhook endpoint.
+9. Send a webhook test event, inspect delivery health, expand the payload, and retry a failed delivery if one is present.
+10. Open the demo store and complete a checkout flow.
+11. Return to dashboard and inspect invoices, transactions, and balances.
 
 In demo mode, the store exposes a payment simulation action so judges can complete the checkout deterministically without running a real Fiber wallet.
 

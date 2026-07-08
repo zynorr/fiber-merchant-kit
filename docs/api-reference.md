@@ -3,6 +3,45 @@
 Base URL: `http://localhost:3001/api/v1`
 Authentication: `Authorization: Bearer fm_sk_...`
 
+## Public Discovery
+
+These endpoints are unauthenticated and safe to open during local review.
+
+### Server Index
+
+`GET /`
+
+Browser-friendly server index at `http://localhost:3001` with links to API discovery, health, dashboard, demo store, and judge review docs.
+
+### API Discovery
+
+`GET /api/v1`
+
+Returns machine-readable metadata for the running kit.
+
+**Response:**
+```json
+{
+  "name": "Fiber Merchant Kit",
+  "version": "1.0.0",
+  "mode": "demo",
+  "services": {
+    "api": "http://localhost:3001/api/v1",
+    "health": "http://localhost:3001/api/v1/health",
+    "adminDashboard": "http://localhost:5173",
+    "demoStore": "http://localhost:5174"
+  },
+  "publicEndpoints": ["GET /", "GET /api/v1", "GET /api/v1/health"],
+  "authenticatedResources": ["invoices", "webhooks", "transactions"]
+}
+```
+
+### Health Check
+
+`GET /health`
+
+Returns `ok` when the configured Fiber node or demo client responds, and `degraded` when the Fiber node is unreachable.
+
 ## Invoices
 
 ### Create Invoice
@@ -351,9 +390,3 @@ Runs the same open-invoice reconciliation used by the background settlement work
 ### Get Transaction
 
 `GET /transactions/:id`
-
-## Health
-
-### Health Check
-
-`GET /health`
