@@ -13,6 +13,8 @@ import express from 'express';
 import cors, { type CorsOptions } from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import fs from 'node:fs';
+import path from 'node:path';
 import { authMiddleware } from './middleware/auth';
 import { createApiLimiter, createHealthLimiter } from './middleware/rate-limit';
 import { invoiceRouter } from './routes/invoices';
@@ -22,6 +24,18 @@ import { demoStoreRouter } from './routes/demo-store';
 import { getFiberClient } from './lib/fiber-client';
 
 const VERSION = '1.0.0';
+const UI_BUILDS = {
+  adminDashboard: {
+    route: '/dashboard',
+    localUrl: 'http://localhost:5173',
+    distDir: path.resolve(process.cwd(), 'packages/admin-dashboard/dist'),
+  },
+  demoStore: {
+    route: '/store',
+    localUrl: 'http://localhost:5174',
+    distDir: path.resolve(process.cwd(), 'packages/demo-store/dist'),
+  },
+};
 
 function getRuntimeMode() {
   const rpcUrl = process.env.FIBER_NODE_RPC_URL;
@@ -44,6 +58,14 @@ function getCorsOrigin(): CorsOptions['origin'] {
   };
 }
 
+function hasStaticBuild(distDir: string): boolean {
+  return fs.existsSync(path.join(distDir, 'index.html'));
+}
+
+function getUiUrl(ui: (typeof UI_BUILDS)[keyof typeof UI_BUILDS]): string {
+  return hasStaticBuild(ui.distDir) ? ui.route : ui.localUrl;
+}
+
 function getDiscoveryPayload() {
   const port = process.env.PORT || '3001';
   return {
@@ -54,8 +76,8 @@ function getDiscoveryPayload() {
     services: {
       api: `http://localhost:${port}/api/v1`,
       health: `http://localhost:${port}/api/v1/health`,
-      adminDashboard: 'http://localhost:5173',
-      demoStore: 'http://localhost:5174',
+      adminDashboard: getUiUrl(UI_BUILDS.adminDashboard),
+      demoStore: getUiUrl(UI_BUILDS.demoStore),
     },
     publicEndpoints: [
       'GET /',
@@ -87,6 +109,16 @@ function getDiscoveryPayload() {
       'docs/openapi.json',
     ],
   };
+}
+
+function serveStaticUi(app: express.Express, route: string, distDir: string) {
+  const indexPath = path.join(distDir, 'index.html');
+  if (!fs.existsSync(indexPath)) return;
+
+  app.use(route, express.static(distDir, { index: false }));
+  app.get([route, `${route}/*`], (_req, res) => {
+    res.sendFile(indexPath);
+  });
 }
 
 export function createApp() {
@@ -180,6 +212,10 @@ export function createApp() {
   app.use('/api/v1/invoices', authMiddleware, invoiceRouter);
   app.use('/api/v1/webhooks', authMiddleware, webhookRouter);
   app.use('/api/v1', authMiddleware, merchantRouter);
+
+  // Built Vite apps are served by the API in Docker/Railway deployments.
+  serveStaticUi(app, UI_BUILDS.adminDashboard.route, UI_BUILDS.adminDashboard.distDir);
+  serveStaticUi(app, UI_BUILDS.demoStore.route, UI_BUILDS.demoStore.distDir);
 
   // ── 404 Handler ──────────────────────────────────────────────
 

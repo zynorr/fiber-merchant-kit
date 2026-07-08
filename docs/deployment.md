@@ -15,7 +15,35 @@ docker compose up --build api
 
 The API listens on `http://localhost:3001` and stores SQLite data in the `merchant-data` volume.
 
+The Docker image also builds and serves the bundled review UIs from the same origin:
+
+| Path | Surface |
+| --- | --- |
+| `/` | Judge-friendly server index and API discovery links |
+| `/api/v1` | Merchant API discovery JSON |
+| `/dashboard` | Merchant operations dashboard |
+| `/store` | FiberStore shopper checkout demo |
+
 GitHub Actions validates this deployment path by rendering the Compose file with the PostgreSQL profile and building the production `api` Docker target.
+
+## Railway Judge Demo
+
+For hackathon review, a single Railway web service can deploy the repository Dockerfile. Use demo mode unless you are wiring a real Fiber Network Node:
+
+```env
+NODE_ENV=development
+FIBER_NODE_RPC_URL=demo
+DISABLE_RATE_LIMIT=true
+FIBER_MERCHANT_DB_PATH=/data/merchant.db
+```
+
+After Railway exposes the service URL:
+
+1. Open the root URL and confirm `/api/v1/health` returns `status: ok`.
+2. Open `/store`, add an item, create a checkout invoice, and use the demo payment action.
+3. Copy the `Demo Merchant API Key: fm_sk_...` value from Railway logs, open `/dashboard`, and inspect invoices, transactions, stats, webhooks, and Fiber status.
+
+For a live FNN testnet Railway deploy, switch to `NODE_ENV=production`, set `FIBER_NODE_RPC_URL` or `FIBER_NODE_RPC_URLS`, and remove demo-only payment simulation expectations.
 
 ## Hosted Live Testnet Topology
 

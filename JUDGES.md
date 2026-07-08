@@ -73,6 +73,8 @@ Services:
 | Admin Dashboard | http://localhost:5173 | Paste API key and inspect merchant workflows |
 | Demo Store | http://localhost:5174 | Add items and run checkout without a shopper-facing API key |
 
+Hosted/Docker review uses one public origin: the API root links to `/dashboard` for merchant operations and `/store` for FiberStore checkout.
+
 Demo mode does not require a real Fiber node. It is the fastest way to judge the merchant workflow end to end.
 
 ### API Key Rule

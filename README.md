@@ -10,6 +10,7 @@ Fiber Merchant Kit is a Stripe-style merchant layer for the Fiber Network. It le
 | What problem does it solve? | Fiber has fast payment channels, but merchants still need familiar checkout, invoice lifecycle, fulfillment, and operational tooling |
 | Who is it for? | Developers building stores, SaaS billing, games, marketplaces, wallets, and apps that want to accept Fiber payments |
 | What can judges run quickly? | `npm install && npm run dev` starts the API, merchant dashboard, and keyless demo store |
+| What can judges open when hosted? | The Docker/Railway image serves the API, dashboard at `/dashboard`, and FiberStore at `/store` from one URL |
 | What proves live-network readiness? | [docs/testnet-smoke.md](docs/testnet-smoke.md) records real FNN testnet smoke checks plus funded settlement evidence |
 
 ## Judge Fast Path
@@ -133,6 +134,8 @@ The root dev command starts all judge-facing services:
 | API Server | http://localhost:3001 | Browser-friendly server index, REST API, and webhook engine |
 | Admin Dashboard | http://localhost:5173 | Merchant operations UI |
 | Demo Store | http://localhost:5174 | Keyless shopper checkout demo |
+
+In a Docker or Railway deployment, the same API process also serves the built UIs at `/dashboard` and `/store`, so judges can review the full demo from one public origin.
 
 Environment templates are checked in at [.env.example](.env.example) and under each package. The platform scripts copy package templates to `.env` files and load `packages/api-server/.env`; direct `npm run dev` users can export the same variables in their shell.
 
