@@ -1,4 +1,5 @@
 export type WebhookPayload = string | ArrayBuffer | ArrayBufferView | Record<string, unknown>;
+type NodeCryptoModule = typeof import('node:crypto');
 
 function payloadToBytes(payload: WebhookPayload): Uint8Array<ArrayBuffer> {
   if (typeof payload === 'string') return new TextEncoder().encode(payload);
@@ -34,21 +35,48 @@ function constantTimeEqual(a: string, b: string): boolean {
   return diff === 0;
 }
 
-async function hmacSha256Hex(payload: WebhookPayload, secret: string): Promise<string> {
-  if (!globalThis.crypto?.subtle) {
-    throw new Error('Web Crypto API is not available in this runtime');
+async function loadNodeCrypto(): Promise<NodeCryptoModule | undefined> {
+  try {
+    const nodeRequire = new Function(
+      'specifier',
+      'return typeof require === "function" ? require(specifier) : undefined',
+    ) as (specifier: string) => NodeCryptoModule | undefined;
+    const requiredCrypto = nodeRequire('node:crypto');
+    if (requiredCrypto) return requiredCrypto;
+  } catch {
+    // Fall through to dynamic import for ESM Node runtimes.
   }
 
-  const key = await globalThis.crypto.subtle.importKey(
-    'raw',
-    new TextEncoder().encode(secret),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign'],
-  );
+  try {
+    const nodeCryptoSpecifier = 'node:crypto';
+    return await import(/* @vite-ignore */ nodeCryptoSpecifier) as NodeCryptoModule;
+  } catch {
+    return undefined;
+  }
+}
 
-  const signature = await globalThis.crypto.subtle.sign('HMAC', key, payloadToBytes(payload));
-  return bytesToHex(signature);
+async function hmacSha256Hex(payload: WebhookPayload, secret: string): Promise<string> {
+  const payloadBytes = payloadToBytes(payload);
+
+  if (globalThis.crypto?.subtle) {
+    const key = await globalThis.crypto.subtle.importKey(
+      'raw',
+      new TextEncoder().encode(secret),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['sign'],
+    );
+
+    const signature = await globalThis.crypto.subtle.sign('HMAC', key, payloadBytes);
+    return bytesToHex(signature);
+  }
+
+  const nodeCrypto = await loadNodeCrypto();
+  if (nodeCrypto) {
+    return nodeCrypto.createHmac('sha256', secret).update(payloadBytes).digest('hex');
+  }
+
+  throw new Error('Web Crypto API is not available in this runtime');
 }
 
 /**

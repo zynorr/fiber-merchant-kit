@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { constructWebhookEvent, verifyWebhookSignature } from './webhooks';
 
 describe('webhook signature helpers', () => {
@@ -6,7 +6,17 @@ describe('webhook signature helpers', () => {
   const secret = 'whsec_test';
   const signature = '030fa3b2413d1993c551364bd53bb9b3edb5c0c34d55dba6ada6041245632811';
 
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it('verifies a valid Fiber webhook signature', async () => {
+    await expect(verifyWebhookSignature(payload, signature, secret)).resolves.toBe(true);
+  });
+
+  it('verifies with the Node crypto fallback when Web Crypto is unavailable', async () => {
+    vi.stubGlobal('crypto', undefined);
+
     await expect(verifyWebhookSignature(payload, signature, secret)).resolves.toBe(true);
   });
 
