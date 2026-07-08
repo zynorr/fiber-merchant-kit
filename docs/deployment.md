@@ -45,6 +45,40 @@ After Railway exposes the service URL:
 
 For a live FNN testnet Railway deploy, switch to `NODE_ENV=production`, set `FIBER_NODE_RPC_URL` or `FIBER_NODE_RPC_URLS`, and remove demo-only payment simulation expectations.
 
+## Fly.io Judge Demo
+
+The repository includes `fly.toml` for a single-service Fly.io demo deployment. It uses the same Dockerfile and serves the API plus bundled UIs from one origin:
+
+| Path | Surface |
+| --- | --- |
+| `/` | Judge index |
+| `/api/v1/health` | Public health check |
+| `/dashboard` | Merchant dashboard |
+| `/store` | FiberStore checkout |
+
+Redeploy this hosted demo with:
+
+```bash
+fly deploy
+```
+
+For a fresh Fly account or fork, change the `app` value in `fly.toml` or generate a new app name:
+
+```bash
+fly launch --generate-name --copy-config --no-db --no-redis --no-object-storage --no-github-workflow --yes --now
+```
+
+The checked-in demo configuration uses:
+
+```env
+NODE_ENV=development
+FIBER_NODE_RPC_URL=demo
+DISABLE_RATE_LIMIT=true
+FIBER_MERCHANT_DB_PATH=/data/merchant.db
+```
+
+For the current hosted smoke evidence, see [demo-evidence.md](demo-evidence.md). The dashboard still requires the demo `fm_sk_...` key printed in Fly logs because it represents the merchant back office; the FiberStore shopper path does not require a key.
+
 ## Hosted Live Testnet Topology
 
 For live testnet review, deploy these pieces as separate surfaces:

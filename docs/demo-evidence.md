@@ -80,3 +80,42 @@ This run exposed the API, dashboard, and FiberStore through Cloudflare Quick Tun
 | Transaction description | `Demo store order: Cyber Widget x1, Digital Art Pack x1` |
 
 This proves the deployed-style split surfaces can be reached from public HTTPS URLs, the store can create a shopper-safe checkout without a merchant API key, and the dashboard/API can observe the paid invoice and successful incoming transaction.
+
+## Fly.io Hosted Demo Smoke
+
+This run deployed the single-service Docker image to Fly.io, serving the API, merchant dashboard, and FiberStore from one public HTTPS origin.
+
+| Field | Value |
+|---|---|
+| Date | July 8, 2026 |
+| Tested app commit | `202dc41` |
+| Deployment type | Fly.io single-service Docker deployment |
+| Public URL | `https://fiber-merchant-kit-zynorr.fly.dev` |
+| Dashboard | `https://fiber-merchant-kit-zynorr.fly.dev/dashboard` |
+| FiberStore | `https://fiber-merchant-kit-zynorr.fly.dev/store` |
+| Mode | Demo Fiber client |
+
+| Check | Result |
+|---|---|
+| Public API health | Passed (`GET /api/v1/health`, `status=ok`, `fiberNode=demo-node`) |
+| Server index links | Passed (`/dashboard` and `/store`) |
+| Public dashboard HTML | Passed |
+| Public FiberStore HTML | Passed |
+| Keyless FiberStore checkout via public API | Passed |
+| Demo payment simulation via public API | Passed |
+| Public invoice polling | `paid` |
+| Authenticated dashboard stats | `totalInvoices=1`, `paidInvoices=1` |
+
+| Field | Value |
+|---|---|
+| Invoice ID | `fb551338-c66a-4792-b0a6-a3493f3a8b19` |
+| Invoice status | `paid` |
+| Amount | `5000` |
+| Currency | `CKB` |
+| Payment hash | `b177d8860ee8f3621d3c7a3a42abd40526bb591f53ec4add0ad6ad4dfea17e78` |
+| Transaction ID | `43394b46-2460-4e91-a26e-b116d70702f9` |
+| Transaction status | `Succeeded` |
+| Transaction direction | `incoming` |
+| Transaction description | `Demo store order: Cyber Widget x1` |
+
+This proves the hosted Fly.io deployment can be evaluated from a clean browser with one public URL: judges can open the store, create a checkout invoice without a merchant key, complete the deterministic demo payment, and inspect the resulting paid invoice from the dashboard.
