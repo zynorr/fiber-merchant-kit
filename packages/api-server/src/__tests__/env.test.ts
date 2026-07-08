@@ -1,5 +1,17 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import fs from 'node:fs';
+import path from 'node:path';
 import { validateEnv, formatWarnings } from '../env';
+
+function stubEnvExample(relativePath: string) {
+  const contents = fs.readFileSync(path.join(process.cwd(), relativePath), 'utf8');
+  for (const line of contents.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#') || !trimmed.includes('=')) continue;
+    const [key, ...rest] = trimmed.split('=');
+    vi.stubEnv(key.trim(), rest.join('=').trim());
+  }
+}
 
 describe('validateEnv', () => {
   beforeEach(() => {
@@ -182,6 +194,15 @@ describe('validateEnv', () => {
     const { warnings } = validateEnv();
     const urlWarn = warnings.find((w) => w.field === 'FIBER_NODE_RPC_URL');
     expect(urlWarn).toBeUndefined();
+  });
+
+  it('accepts the checked-in API .env.example defaults', () => {
+    stubEnvExample('.env.example');
+
+    const { env, warnings } = validateEnv();
+
+    expect(env.FIBER_NODE_RPC_URL).toBe('demo');
+    expect(warnings.filter((w) => w.severity === 'error')).toHaveLength(0);
   });
 });
 

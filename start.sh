@@ -14,6 +14,28 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
+load_env_file() {
+  local env_file="$1"
+  [ -f "$env_file" ] || return 0
+
+  while IFS= read -r line || [ -n "$line" ]; do
+    line="${line#"${line%%[![:space:]]*}"}"
+    line="${line%"${line##*[![:space:]]}"}"
+
+    if [ -z "$line" ] || [[ "$line" == \#* ]] || [[ "$line" != *=* ]]; then
+      continue
+    fi
+
+    local key="${line%%=*}"
+    local value="${line#*=}"
+    key="${key//[[:space:]]/}"
+
+    if [[ "$key" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] && [ -z "${!key+x}" ]; then
+      export "$key=$value"
+    fi
+  done < "$env_file"
+}
+
 echo ""
 echo "  Fiber Merchant Kit"
 echo "  ===================="
@@ -40,6 +62,7 @@ if [ ! -f packages/demo-store/.env ] && [ -f packages/demo-store/.env.example ];
   cp packages/demo-store/.env.example packages/demo-store/.env
   echo "  Created packages/demo-store/.env from .env.example"
 fi
+load_env_file packages/api-server/.env
 echo ""
 
 # -- Start all services ----------------------------------------

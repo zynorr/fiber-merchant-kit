@@ -115,6 +115,8 @@ Or use the platform scripts:
 .\start.ps1
 ```
 
+Environment templates are checked in at [.env.example](.env.example) and under each package. The platform scripts copy the package templates to `.env` files and load `packages/api-server/.env`; direct `npm run dev` users can export the same variables in their shell.
+
 The dev command starts:
 
 | Service | URL | Role |

@@ -18,6 +18,8 @@ npm install
 npm run dev --workspace=packages/api-server
 ```
 
+For configuration, use the checked-in `.env.example` files as templates. The platform scripts copy package examples to `.env` files and load `packages/api-server/.env`; when running npm scripts directly, export API server variables in your shell.
+
 You should see:
 
 ```

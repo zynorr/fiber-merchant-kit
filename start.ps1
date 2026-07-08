@@ -12,6 +12,29 @@ param(
     [switch]$NoInstall
 )
 
+function Import-EnvFile {
+    param([string]$Path)
+
+    if (-not (Test-Path $Path)) {
+        return
+    }
+
+    foreach ($line in Get-Content $Path) {
+        $trimmed = $line.Trim()
+        if ($trimmed -eq "" -or $trimmed.StartsWith("#") -or -not $trimmed.Contains("=")) {
+            continue
+        }
+
+        $parts = $trimmed.Split("=", 2)
+        $key = $parts[0].Trim()
+        $value = $parts[1]
+
+        if ($key -match "^[A-Za-z_][A-Za-z0-9_]*$" -and -not [Environment]::GetEnvironmentVariable($key)) {
+            Set-Item -Path "Env:$key" -Value $value
+        }
+    }
+}
+
 Write-Host ""
 Write-Host "  Fiber Merchant Kit" -ForegroundColor Cyan
 Write-Host "  ====================" -ForegroundColor Cyan
@@ -38,6 +61,7 @@ if (-not (Test-Path packages/demo-store/.env) -and (Test-Path packages/demo-stor
     Copy-Item packages/demo-store/.env.example packages/demo-store/.env
     Write-Host "  Created packages/demo-store/.env from .env.example" -ForegroundColor Gray
 }
+Import-EnvFile "packages/api-server/.env"
 Write-Host ""
 
 # -- Start all services ----------------------------------------

@@ -16,6 +16,8 @@ The server will start on `http://localhost:3001` and display your demo API key i
 
 ## Environment Variables
 
+Copy `.env.example` to `.env` when using the platform start scripts. If you run this package directly with npm, export these variables in your shell or deployment environment before starting the server.
+
 | Variable | Default | Description |
 |---|---|---|
 | PORT | 3001 | HTTP port |

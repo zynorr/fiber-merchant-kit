@@ -17,6 +17,10 @@ import { initDatabase, closeDb, seedDemoMerchant } from './db';
 import { validateEnv, formatWarnings } from './env';
 import { startSettlementWorker, stopSettlementWorker } from './services/settlement-worker';
 
+function getServerMode(rpcUrl?: string): string {
+  return rpcUrl && rpcUrl !== 'demo' ? 'Live (Fiber Node)' : 'Demo';
+}
+
 async function main() {
   // -- Validate environment variables ---------------------------
   const { env, warnings } = validateEnv();
@@ -47,12 +51,13 @@ async function main() {
   const app = createApp();
 
   const server = app.listen(env.PORT, () => {
+    const mode = getServerMode(env.FIBER_NODE_RPC_URL);
     console.log(`
   +----------------------------------------------+
   |      Fiber Merchant Kit -- API Server         |
   |  Server:   http://localhost:${env.PORT}              |
   |  API:      http://localhost:${env.PORT}/api/v1       |
-  |  Mode:     ${env.FIBER_NODE_RPC_URL ? 'Live (Fiber Node)' : 'Demo'}         |
+  |  Mode:     ${mode}         |
   +----------------------------------------------+
     `);
     startSettlementWorker();
