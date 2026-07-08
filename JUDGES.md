@@ -144,7 +144,7 @@ During development, the project was verified with:
 - API route, validation, utility, and environment tests.
 - TypeScript SDK tests.
 - TypeScript checks across API, SDK, dashboard, and demo store.
-- Local demo smoke command covering public discovery, invoice creation, signed webhooks, demo payment simulation, transactions, stats, and settlement sweep.
+- Local demo smoke command, also run in GitHub Actions, covering public discovery, invoice creation, signed webhooks, demo payment simulation, transactions, stats, and settlement sweep.
 - Python SDK smoke test in this environment.
 - Real sql.js database smoke test for invoice transition behavior.
 - Live demo checkout: invoice `ebbd43bf-6b04-4248-a670-b9476f0bd92d` paid and transaction `987865e5-6d8c-47df-9d8c-ea906598a3b8` promoted to `Succeeded`.

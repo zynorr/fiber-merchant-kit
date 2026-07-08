@@ -83,6 +83,9 @@ jobs:
       - name: Build API server
         run: npm run build --workspace=packages/api-server
 
+      - name: Run local demo smoke test
+        run: npm run demo:smoke
+
       - name: Start API server
         run: |
           cd packages/api-server
