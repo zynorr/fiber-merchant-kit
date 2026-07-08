@@ -72,7 +72,7 @@ Services:
 |---|---|---|
 | API Server | http://localhost:3001 | Prints demo API key, opens a server index, exposes `/api/v1` |
 | Admin Dashboard | http://localhost:5173 | Paste API key and inspect merchant workflows |
-| Demo Store | http://localhost:5174 | Add items and run checkout |
+| Demo Store | http://localhost:5174 | Add items and run checkout without a shopper-facing API key |
 
 Demo mode does not require a real Fiber node.
 
@@ -88,7 +88,7 @@ The same evidence file also includes a funded live testnet settlement completed 
 
 ## Suggested Demo Script
 
-1. Start the repo and copy the printed `fm_sk_...` API key.
+1. Start the repo and copy the printed `fm_sk_...` API key for the dashboard.
 2. Open http://localhost:3001 and confirm the server index, API discovery link, and health link are available.
 3. Open the admin dashboard.
 4. Create an invoice.
@@ -97,7 +97,7 @@ The same evidence file also includes a funded live testnet settlement completed 
 7. Click Run Settlement and confirm the activity summary updates.
 8. Register a webhook endpoint.
 9. Send a webhook test event, inspect delivery health, expand the payload, and retry a failed delivery if one is present.
-10. Open the demo store and complete a checkout flow.
+10. Open the demo store and complete a checkout flow without entering a merchant key.
 11. Return to dashboard and inspect invoices, transactions, and balances.
 
 In demo mode, the store exposes a payment simulation action so judges can complete the checkout deterministically without running a real Fiber wallet.
@@ -114,6 +114,7 @@ In demo mode, the store exposes a payment simulation action so judges can comple
 | Idempotent DB transitions | `packages/api-server/src/db/index.ts` |
 | Fiber RPC wrapper and demo mode | `packages/api-server/src/services/fiber-client.ts` |
 | Fiber RPC failover and endpoint status | `packages/api-server/src/lib/fiber-client.ts`, `packages/api-server/src/services/fiber-status.ts` |
+| Shopper-safe demo checkout | `packages/api-server/src/routes/demo-store.ts`, `packages/api-server/src/services/invoice-creation.ts`, `packages/demo-store/src/App.tsx` |
 | Webhook outbox/retry/signing/logs/replay | `packages/api-server/src/services/webhook-delivery.ts`, `packages/api-server/src/db/index.ts`, `packages/admin-dashboard/src/pages/WebhooksPage.tsx` |
 | Webhook API and delivery log response | `packages/api-server/src/routes/webhooks.ts` |
 | Auth context, roles, and key rotation | `packages/api-server/src/middleware/auth.ts`, `packages/api-server/src/routes/merchant.ts` |
@@ -162,7 +163,7 @@ During development, the project was verified with:
 - Real sql.js database smoke test for invoice transition behavior.
 - Live demo checkout: invoice `ebbd43bf-6b04-4248-a670-b9476f0bd92d` paid and transaction `987865e5-6d8c-47df-9d8c-ea906598a3b8` promoted to `Succeeded`.
 - Fiber testnet smoke against FNN `v0.8.1`: `node_info`, `list_channels`, optional `new_invoice`, graph sync, and Merchant API live-mode invoice creation passed.
-- Live demo store against FNN testnet: invoice `903492a3-27cc-4927-b19d-2f19496c3c6b` created with payment hash `a60c8807ea5d69425fcd36878261fdb6df7287d770946166ec4eb3a4180893f8` and remained `pending` as expected on an unfunded disposable node.
+- Live demo store against FNN testnet: keyless checkout invoice `db6529e2-efe0-4451-84d5-7a4746585688` created with payment hash `263221c4e16d2e005ed0b3a7dbabf38c85cf7f3df0f5b9856b203d633f64f52b` and remained `pending` as expected on an unfunded disposable node.
 - Funded Fiber testnet settlement: payment hash `0xe28512a5139dcd8ce648d6ab8e2a6924f4ce1f64d1ce52a45212689dca859864` reached `Success` for a 1 CKB `Fibt` payment routed through public node1.
 - GitHub Actions container validation: production Compose config with the PostgreSQL profile plus the API Docker image build.
 

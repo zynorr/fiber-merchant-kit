@@ -123,8 +123,8 @@ Observed result:
 | Merchant API live mode | Passed, `GET /api/v1/health` returned `ok` with Fiber version `0.8.1` |
 | Merchant API invoice | Passed, created invoice `e621eed9-5a8c-4d7f-a847-c19180b8ccc7` with payment hash `84c84bf23f60f0c049c1354ba8a918186691c1907136da89647ca4fb614d2c61` |
 | Demo store mode badge | Passed, displayed `Live node` |
-| Demo store checkout | Passed, created invoice `903492a3-27cc-4927-b19d-2f19496c3c6b` for `Cyber Widget x1` |
-| Demo checkout payment hash | `a60c8807ea5d69425fcd36878261fdb6df7287d770946166ec4eb3a4180893f8` |
+| Demo store checkout | Passed, created invoice `db6529e2-efe0-4451-84d5-7a4746585688` for `Cyber Widget x1` without a shopper-facing API key |
+| Demo checkout payment hash | `263221c4e16d2e005ed0b3a7dbabf38c85cf7f3df0f5b9856b203d633f64f52b` |
 | Demo checkout status | `pending`, expected because the disposable node had 0 channels and no funded payer |
 | Settlement worker | Passed, live worker checked open invoices with 0 errors |
 

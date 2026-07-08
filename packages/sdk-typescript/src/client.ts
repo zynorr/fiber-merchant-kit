@@ -26,7 +26,7 @@
  * ```
  */
 
-import { ofetch, type $Fetch } from 'ofetch';
+import { ofetch, type $Fetch, type FetchContext } from 'ofetch';
 import type {
   MerchantClientOptions,
   Invoice,
@@ -61,7 +61,7 @@ export class MerchantClient {
   public readonly auth: AuthResource;
 
   constructor(options: MerchantClientOptions) {
-    const { baseUrl, apiKey, timeout = 30_000 } = options;
+    const { baseUrl, apiKey, timeout = 30_000, onUnauthorized } = options;
     const normalizedBaseUrl = baseUrl.replace(/\/+$/, '');
 
     this.fetch = ofetch.create({
@@ -73,6 +73,11 @@ export class MerchantClient {
         'Content-Type': 'application/json',
       },
       timeout,
+      onResponseError({ response }: FetchContext & { response: Response }) {
+        if (response.status === 401) {
+          onUnauthorized?.();
+        }
+      },
     });
 
     this.invoices = new InvoiceResource(this.fetch);

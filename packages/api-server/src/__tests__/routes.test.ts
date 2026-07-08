@@ -97,6 +97,7 @@ describe('API Routes', () => {
     vi.clearAllMocks();
     app = createApp();
     mockDb.findMerchantByApiKey.mockReturnValue(DEMO_MERCHANT);
+    mockDb.seedDemoMerchant.mockReturnValue({ id: DEMO_MERCHANT.id, apiKey: DEMO_MERCHANT.api_key });
     mockDb.listMerchantUsers.mockReturnValue([]);
     mockWebhookDeliveryService.getWebhookDeliveryWorkerConfig.mockReturnValue({
       enabled: true,
@@ -145,6 +146,7 @@ describe('API Routes', () => {
       expect(res.body.version).toBe('1.0.0');
       expect(res.body.mode).toBe('demo');
       expect(res.body.publicEndpoints).toContain('GET /api/v1/health');
+      expect(res.body.publicEndpoints).toContain('POST /api/v1/demo-store/checkout');
       expect(res.body.authenticatedResources).toContain('invoices');
       expect(res.body.reviewDocs).toContain('JUDGES.md');
     });
@@ -298,6 +300,77 @@ describe('API Routes', () => {
       updated_at: '2026-07-04T00:00:00Z',
     };
 
+    describe('Demo store public checkout', () => {
+      it('creates a demo checkout invoice without exposing a merchant API key', async () => {
+        mockFiberClient.createInvoice.mockResolvedValue({
+          paymentHash: '0xabc123',
+          preimage: 'preimage_val',
+          invoiceAddress: 'fibt1created...',
+        });
+        mockDb.getInvoice.mockReturnValue({
+          ...mockInvoice,
+          amount: '10000',
+          description: 'Demo store order: Cyber Widget x2',
+        });
+
+        const res = await request(app)
+          .post('/api/v1/demo-store/checkout')
+          .send({ items: [{ productId: 1, quantity: 2 }] });
+
+        expect(res.status).toBe(201);
+        expect(res.body.id).toBe('inv-123');
+        expect(res.body.order.totalAmount).toBe('10000');
+        expect(res.body.order.items).toEqual([
+          expect.objectContaining({ id: 1, name: 'Cyber Widget', quantity: 2, amount: 10000 }),
+        ]);
+        expect(mockDb.findMerchantByApiKey).not.toHaveBeenCalled();
+        expect(mockDb.createInvoice).toHaveBeenCalledWith(expect.objectContaining({
+          amount: '10000',
+          merchantId: 'merchant-1',
+          description: 'Demo store order: Cyber Widget x2',
+        }));
+        expect(mockDb.createTransaction).toHaveBeenCalledWith(expect.objectContaining({
+          amount: '10000',
+          status: 'Pending',
+        }));
+      });
+
+      it('rejects unknown demo store products', async () => {
+        const res = await request(app)
+          .post('/api/v1/demo-store/checkout')
+          .send({ items: [{ productId: 999, quantity: 1 }] });
+
+        expect(res.status).toBe(400);
+        expect(res.body.error).toMatch(/unknown demo product/i);
+        expect(mockFiberClient.createInvoice).not.toHaveBeenCalled();
+      });
+
+      it('lets the demo store poll one of its invoices without merchant auth', async () => {
+        mockDb.getInvoice.mockReturnValue(mockInvoice);
+        mockFiberClient.getInvoiceStatus.mockResolvedValue({ status: 'Open' });
+
+        const res = await request(app).get('/api/v1/demo-store/invoices/inv-123');
+
+        expect(res.status).toBe(200);
+        expect(res.body.id).toBe('inv-123');
+        expect(mockDb.getInvoice).toHaveBeenCalledWith('inv-123', 'merchant-1');
+        expect(mockDb.findMerchantByApiKey).not.toHaveBeenCalled();
+      });
+
+      it('simulates payment through the demo store route in demo mode', async () => {
+        mockDb.getInvoice
+          .mockReturnValueOnce(mockInvoice)
+          .mockReturnValue({ ...mockInvoice, status: 'paid', paid_at: '2026-07-04T12:05:00Z' });
+        mockDb.updateInvoiceStatus.mockReturnValue(true);
+
+        const res = await request(app).post('/api/v1/demo-store/invoices/inv-123/simulate-payment');
+
+        expect(res.status).toBe(200);
+        expect(res.body.status).toBe('paid');
+        expect(mockDb.updateInvoiceStatus).toHaveBeenCalledWith('inv-123', 'paid', 'merchant-1');
+      });
+    });
+
     describe('POST /api/v1/invoices', () => {
       it('creates an invoice successfully', async () => {
         mockFiberClient.createInvoice.mockResolvedValue({
@@ -350,7 +423,6 @@ describe('API Routes', () => {
           .set('Idempotency-Key', 'order-123')
           .send({ amount: '5000', currency: 'CKB', description: 'Test order' });
 
-        const createdInvoice = mockDb.createInvoice.mock.calls[0][0];
         expect(res.status).toBe(201);
         expect(mockDb.beginIdempotencyRequest).toHaveBeenCalledWith(expect.objectContaining({
           merchantId: 'merchant-1',
@@ -360,7 +432,7 @@ describe('API Routes', () => {
         }));
         expect(mockDb.completeIdempotencyRequest).toHaveBeenCalledWith('idem-1', {
           resourceType: 'invoice',
-          resourceId: createdInvoice.id,
+          resourceId: 'inv-123',
           statusCode: 201,
         });
       });

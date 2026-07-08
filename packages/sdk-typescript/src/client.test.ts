@@ -52,6 +52,21 @@ describe('MerchantClient', () => {
       expect(createOptions.baseURL).toBe('http://localhost:3001/api/v1');
     });
 
+    it('should notify callers when the API rejects credentials', async () => {
+      const onUnauthorized = vi.fn();
+      new MerchantClient({
+        baseUrl: mockBaseUrl,
+        apiKey: mockApiKey,
+        onUnauthorized,
+      });
+
+      const onResponseError = createOptions.onResponseError as (context: { response: { status: number } }) => void;
+      onResponseError({ response: { status: 401 } });
+      onResponseError({ response: { status: 500 } });
+
+      expect(onUnauthorized).toHaveBeenCalledTimes(1);
+    });
+
     it('should expose all resource APIs', () => {
       expect(client.invoices).toBeDefined();
       expect(client.webhooks).toBeDefined();

@@ -33,7 +33,7 @@ Demo Merchant API Key: fm_sk_a1b2c3d4e5f6...
 +----------------------------------------------+
 ```
 
-Open http://localhost:3001 to see the public server index with API discovery and health links. Save your API key.
+Open http://localhost:3001 to see the public server index with API discovery and health links. Save your API key for dashboard and SDK requests.
 
 ## Step 2: Start the Admin Dashboard
 
@@ -51,7 +51,7 @@ Open http://localhost:5173 and enter your API key.
 npm run dev --workspace=packages/demo-store
 ```
 
-Open http://localhost:5174 to see a working e-commerce store.
+Open http://localhost:5174 to see a working e-commerce store. The store uses the API server's public demo checkout route, so shoppers do not paste a merchant API key.
 
 ## Step 4: Integrate with Code
 

@@ -22,6 +22,7 @@ import {
   markInvoicePaid,
   refreshInvoiceSettlement,
 } from '../services/invoice-settlement';
+import { createMerchantInvoice } from '../services/invoice-creation';
 
 const router = Router();
 const CREATE_INVOICE_IDEMPOTENCY_ROUTE = '/api/v1/invoices';
@@ -70,7 +71,6 @@ router.post('/', async (req: AuthenticatedRequest, res: Response) => {
   let idempotencyRecordId: string | undefined;
   try {
     const parsed = createInvoiceSchema.parse(req.body);
-    const { amount, currency, description, metadata, expiry, webhookUrl, udtTypeScript } = parsed;
     const requestHash = hashRequestBody(parsed);
     const idempotencyKey = readIdempotencyKey(req);
 
@@ -114,71 +114,15 @@ router.post('/', async (req: AuthenticatedRequest, res: Response) => {
       idempotencyRecordId = idempotency.record.id;
     }
 
-    const fiber = getFiberClient();
-
-    // Create invoice on the Fiber node
-    const invoiceResult = await fiber.createInvoice({
-      amount: String(amount),
-      currency: currency || 'CKB',
-      description,
-      expiry: expiry || 3600,
-      udtTypeScript,
-      allowMpp: true,
-    });
-
-    // Store in local database
-    const invoiceId = crypto.randomUUID();
-    const expiresAt = new Date(Date.now() + (expiry || 3600) * 1000).toISOString();
-
-    const invoiceData = {
-      id: invoiceId,
-      paymentHash: invoiceResult.paymentHash,
-      preimage: invoiceResult.preimage,
-      invoiceAddress: invoiceResult.invoiceAddress,
-      amount: String(amount),
-      currency: currency || 'CKB',
-      description,
-      metadata: metadata as Record<string, string> | undefined,
-      expiresAt,
-      webhookUrl,
-      merchantId: req.merchantId,
-    };
-
-    db.createInvoice(invoiceData);
-
-    // Also create a pending transaction
-    db.createTransaction({
-      id: crypto.randomUUID(),
-      paymentHash: invoiceResult.paymentHash,
-      invoiceId,
-      direction: 'incoming',
-      amount: String(amount),
-      currency: currency || 'CKB',
-      status: 'Pending',
-      description,
-      metadata: metadata as Record<string, string> | undefined,
-    });
-
-    // Fire webhook event asynchronously
-    emitInvoiceWebhookEvent('invoice.created', {
-      id: invoiceId,
-      amount: String(amount),
-      currency: currency || 'CKB',
-      status: 'pending',
-      invoiceAddress: invoiceResult.invoiceAddress,
-      expiresAt,
-    }, req.merchantId);
-
-    // Return invoice to merchant (camelCase)
-    const invoice = db.getInvoice(invoiceId, req.merchantId);
+    const invoice = await createMerchantInvoice(parsed, req.merchantId!);
     if (idempotencyRecordId) {
       db.completeIdempotencyRequest(idempotencyRecordId, {
         resourceType: 'invoice',
-        resourceId: invoiceId,
+        resourceId: invoice.id,
         statusCode: 201,
       });
     }
-    res.status(201).json(toCamelCase(invoice!));
+    res.status(201).json(toCamelCase(invoice));
   } catch (err: unknown) {
     if (idempotencyRecordId) {
       try {

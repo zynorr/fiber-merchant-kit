@@ -15,11 +15,8 @@ import {
   Star,
   Palette,
   Shirt,
-  Terminal,
-  ShieldCheck,
   RefreshCw,
   CreditCard,
-  Check,
 } from 'lucide-react';
 
 const PRODUCTS = [
@@ -71,16 +68,8 @@ interface CartItem {
 type Step = 'cart' | 'payment' | 'confirming' | 'success' | 'error';
 type ApiMode = 'checking' | 'demo' | 'live' | 'offline';
 
-function getConfiguredApiKey() {
-  return import.meta.env.VITE_MERCHANT_API_KEY || localStorage.getItem('fm_api_key') || '';
-}
-
 function formatCkb(amount: number) {
   return (amount / 1e8).toFixed(6);
-}
-
-function shortKey(key: string) {
-  return key ? `${key.slice(0, 8)}...${key.slice(-6)}` : '';
 }
 
 function ProductIcon({ product }: { product: Product }) {
@@ -97,13 +86,10 @@ export default function App() {
   const [invoiceId, setInvoiceId] = useState('');
   const [invoiceStatus, setInvoiceStatus] = useState('pending');
   const [errorMsg, setErrorMsg] = useState('');
-  const [notice, setNotice] = useState('');
   const [checkingStatus, setCheckingStatus] = useState(false);
   const [simulating, setSimulating] = useState(false);
   const [statusChecks, setStatusChecks] = useState(0);
   const [apiMode, setApiMode] = useState<ApiMode>('checking');
-  const [apiKey, setApiKey] = useState(getConfiguredApiKey);
-  const [apiKeyInput, setApiKeyInput] = useState(getConfiguredApiKey);
   const [checkoutItems, setCheckoutItems] = useState<CartItem[]>([]);
   const [checkoutTotalCkb, setCheckoutTotalCkb] = useState('0.000000');
 
@@ -155,19 +141,6 @@ export default function App() {
     setCart((prev) => prev.filter((item) => item.product.id !== productId));
   };
 
-  const saveApiKey = () => {
-    const next = apiKeyInput.trim();
-    if (!next) {
-      localStorage.removeItem('fm_api_key');
-      setApiKey('');
-      return;
-    }
-    localStorage.setItem('fm_api_key', next);
-    setApiKey(next);
-    setNotice('Merchant key saved');
-    setErrorMsg('');
-  };
-
   const resetCheckout = () => {
     setStep('cart');
     setInvoiceId('');
@@ -199,19 +172,17 @@ export default function App() {
     return false;
   };
 
-  const fetchInvoiceStatus = async (id: string, key: string) => {
-    const res = await fetch(`/api/v1/invoices/${id}`, {
-      headers: { Authorization: `Bearer ${key}` },
-    });
+  const fetchInvoiceStatus = async (id: string) => {
+    const res = await fetch(`/api/v1/demo-store/invoices/${id}`);
     if (!res.ok) throw new Error('Unable to refresh invoice status');
     return res.json();
   };
 
   const checkStatusNow = async () => {
-    if (!invoiceId || !apiKey) return;
+    if (!invoiceId) return;
     setCheckingStatus(true);
     try {
-      const invoice = await fetchInvoiceStatus(invoiceId, apiKey);
+      const invoice = await fetchInvoiceStatus(invoiceId);
       setStatusChecks((count) => count + 1);
       const done = applyInvoiceState(invoice);
       if (!done) setCheckingStatus(false);
@@ -221,7 +192,7 @@ export default function App() {
     }
   };
 
-  const pollPaymentStatus = (id: string, key: string) => {
+  const pollPaymentStatus = (id: string) => {
     setCheckingStatus(true);
     let attempts = 0;
     const maxAttempts = 30;
@@ -229,7 +200,7 @@ export default function App() {
     const check = async () => {
       attempts += 1;
       try {
-        const invoice = await fetchInvoiceStatus(id, key);
+        const invoice = await fetchInvoiceStatus(id);
         setStatusChecks(attempts);
         const done = applyInvoiceState(invoice);
         if (done) return;
@@ -257,38 +228,24 @@ export default function App() {
   };
 
   const handleCheckout = async () => {
-    const key = getConfiguredApiKey();
-    setApiKey(key);
-
-    if (!key) {
-      setErrorMsg('Merchant API key required');
-      return;
-    }
     if (cart.length === 0) return;
 
     setStep('payment');
     setErrorMsg('');
-    setNotice('');
     setCheckoutItems(cart);
     setCheckoutTotalCkb(totalAmountCkb);
 
     try {
-      const response = await fetch('/api/v1/invoices', {
+      const response = await fetch('/api/v1/demo-store/checkout', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${key}`,
         },
         body: JSON.stringify({
-          amount: String(totalAmount),
-          currency: 'CKB',
-          description: `Demo store order: ${cart.map((i) => `${i.product.name} x${i.quantity}`).join(', ')}`,
-          metadata: {
-            store: 'Fiber Demo Store',
-            items: JSON.stringify(
-              cart.map((i) => ({ id: i.product.id, name: i.product.name, qty: i.quantity })),
-            ),
-          },
+          items: cart.map((item) => ({
+            productId: item.product.id,
+            quantity: item.quantity,
+          })),
         }),
       });
 
@@ -303,7 +260,7 @@ export default function App() {
       setInvoiceStatus(invoice.status || 'pending');
       setStatusChecks(0);
       setStep('confirming');
-      pollPaymentStatus(invoice.id, key);
+      pollPaymentStatus(invoice.id);
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : 'Payment failed');
       setStep('error');
@@ -311,14 +268,13 @@ export default function App() {
   };
 
   const simulatePayment = async () => {
-    if (!invoiceId || !apiKey) return;
+    if (!invoiceId) return;
     setSimulating(true);
     setErrorMsg('');
 
     try {
-      const response = await fetch(`/api/v1/invoices/${invoiceId}/simulate-payment`, {
+      const response = await fetch(`/api/v1/demo-store/invoices/${invoiceId}/simulate-payment`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${apiKey}` },
       });
       if (!response.ok) {
         const err = await response.json();
@@ -384,50 +340,6 @@ export default function App() {
       <main className="mx-auto max-w-6xl px-4 py-8">
         {step === 'cart' && (
           <>
-            <section className="mb-6 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                <div className="flex items-start gap-3">
-                  <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-slate-900">
-                    {apiKey ? (
-                      <ShieldCheck className="h-5 w-5 text-emerald-300" />
-                    ) : (
-                      <Terminal className="h-5 w-5 text-sky-300" />
-                    )}
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-slate-900">
-                      {apiKey ? `Merchant key ${shortKey(apiKey)}` : 'Merchant API key'}
-                    </p>
-                    <p className="text-xs text-slate-500">
-                      {apiKey ? 'Checkout requests are ready.' : 'Paste the demo key printed by the API server.'}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                  <input
-                    value={apiKeyInput}
-                    onChange={(event) => setApiKeyInput(event.target.value)}
-                    placeholder="fm_sk_..."
-                    className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-mono text-slate-700 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100 sm:w-80"
-                    data-testid="api-key-input"
-                  />
-                  <button
-                    onClick={saveApiKey}
-                    className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white transition hover:bg-slate-800"
-                    data-testid="save-api-key"
-                  >
-                    <Check className="h-4 w-4" />
-                    Save
-                  </button>
-                </div>
-              </div>
-              {(notice || errorMsg) && (
-                <p className={`mt-3 text-sm ${errorMsg ? 'text-red-600' : 'text-emerald-600'}`}>
-                  {errorMsg || notice}
-                </p>
-              )}
-            </section>
-
             <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
               <section>
                 <div className="mb-4 flex items-center justify-between">
@@ -544,7 +456,7 @@ export default function App() {
                       </div>
                       <button
                         onClick={handleCheckout}
-                        disabled={!apiKey || apiMode === 'offline'}
+                        disabled={apiMode === 'offline'}
                         className="flex w-full items-center justify-center gap-2 rounded-lg bg-sky-600 py-3 text-sm font-bold text-white transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:bg-slate-300"
                         data-testid="checkout-button"
                       >

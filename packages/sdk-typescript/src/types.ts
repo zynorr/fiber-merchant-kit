@@ -326,4 +326,5 @@ export interface MerchantClientOptions {
   baseUrl: string;
   apiKey: string;
   timeout?: number;
+  onUnauthorized?: () => void;
 }

@@ -17,6 +17,10 @@
       "description": "Public server discovery and health endpoints"
     },
     {
+      "name": "Demo Store",
+      "description": "Public demo checkout endpoints used by the bundled FiberStore"
+    },
+    {
       "name": "Auth",
       "description": "Authenticated merchant context, permissions, and API key operations"
     },
@@ -99,6 +103,100 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/v1/demo-store/checkout": {
+      "post": {
+        "tags": ["Demo Store"],
+        "summary": "Create a demo-store checkout invoice",
+        "operationId": "createDemoStoreCheckout",
+        "description": "Public checkout endpoint for the bundled FiberStore. The server owns product prices and creates the invoice with the demo merchant, so no merchant API key is exposed to the shopper browser.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DemoStoreCheckoutRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Demo checkout invoice created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DemoStoreCheckoutResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/v1/demo-store/invoices/{id}": {
+      "get": {
+        "tags": ["Demo Store"],
+        "summary": "Get a demo-store checkout invoice",
+        "operationId": "getDemoStoreInvoice",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Demo checkout invoice",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Invoice"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/v1/demo-store/invoices/{id}/simulate-payment": {
+      "post": {
+        "tags": ["Demo Store"],
+        "summary": "Simulate payment for a demo-store checkout invoice",
+        "operationId": "simulateDemoStorePayment",
+        "description": "Demo mode only. Marks a pending demo-store invoice paid without exposing the merchant API key.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Updated invoice",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Invoice"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
           }
         }
       }
@@ -1455,6 +1553,92 @@
             "maxLength": 500
           }
         }
+      },
+      "DemoStoreCheckoutItem": {
+        "type": "object",
+        "required": ["productId", "quantity"],
+        "properties": {
+          "productId": {
+            "type": "integer",
+            "minimum": 1,
+            "example": 1
+          },
+          "quantity": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 20,
+            "example": 2
+          }
+        }
+      },
+      "DemoStoreCheckoutRequest": {
+        "type": "object",
+        "required": ["items"],
+        "properties": {
+          "items": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 20,
+            "items": {
+              "$ref": "#/components/schemas/DemoStoreCheckoutItem"
+            }
+          }
+        }
+      },
+      "DemoStoreOrderItem": {
+        "type": "object",
+        "required": ["id", "name", "quantity", "unitAmount", "amount"],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "quantity": {
+            "type": "integer"
+          },
+          "unitAmount": {
+            "type": "integer"
+          },
+          "amount": {
+            "type": "integer"
+          }
+        }
+      },
+      "DemoStoreOrder": {
+        "type": "object",
+        "required": ["items", "totalAmount", "currency"],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DemoStoreOrderItem"
+            }
+          },
+          "totalAmount": {
+            "type": "string"
+          },
+          "currency": {
+            "$ref": "#/components/schemas/Currency"
+          }
+        }
+      },
+      "DemoStoreCheckoutResponse": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Invoice"
+          },
+          {
+            "type": "object",
+            "required": ["order"],
+            "properties": {
+              "order": {
+                "$ref": "#/components/schemas/DemoStoreOrder"
+              }
+            }
+          }
+        ]
       },
       "Invoice": {
         "type": "object",

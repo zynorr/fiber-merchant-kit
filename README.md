@@ -136,7 +136,7 @@ When the API server starts, copy the printed `fm_sk_...` API key and use it in t
 3. Open the invoice detail page and poll/refresh status.
 4. Inspect the Network page for node, channel, and settlement worker status.
 5. Register a webhook endpoint and send a test event.
-6. Open the demo store, add products, and start checkout.
+6. Open the demo store, add products, and start checkout without pasting a merchant API key.
 7. Use the demo payment action to complete checkout, then confirm the paid invoice in the dashboard.
 
 Demo mode works without a real Fiber node. For testnet/production, set `FIBER_NODE_RPC_URL` or comma-separated `FIBER_NODE_RPC_URLS` plus either `FIBER_NODE_RPC_AUTH_TOKEN` for protected Fiber RPC endpoints or `FIBER_NODE_RPC_USER`/`FIBER_NODE_RPC_PASSWORD` for private basic-auth setups. See [docs/testnet-smoke.md](docs/testnet-smoke.md) for RPC smoke checks and [docs/deployment.md](docs/deployment.md) for Docker/failover notes.
@@ -175,6 +175,8 @@ Important endpoints:
 | `GET /` | Public server index for judges and local operators |
 | `GET /api/v1` | Public API discovery metadata |
 | `GET /api/v1/health` | Public health check with Fiber node reachability |
+| `POST /api/v1/demo-store/checkout` | Public demo-store checkout that creates server-side invoices without exposing a merchant API key |
+| `GET /api/v1/demo-store/invoices/:id` | Public demo-store invoice polling route |
 | `GET /api/v1/auth/me` | Inspect authenticated merchant role and permissions |
 | `POST /api/v1/auth/api-key/rotate` | Rotate the current merchant API key |
 | `POST /api/v1/invoices` | Create invoice |
@@ -258,7 +260,7 @@ The testnet smoke command requires a real FNN RPC endpoint and is documented in 
 
 GitHub Actions also validates the production Compose file, including the PostgreSQL profile, and builds the production API Docker image from `Dockerfile`.
 
-Latest smoke result: on July 8, 2026, the demo store was redeployed against a disposable local FNN `v0.8.1` testnet node and created live invoice `903492a3-27cc-4927-b19d-2f19496c3c6b` with payment hash `a60c8807ea5d69425fcd36878261fdb6df7287d770946166ec4eb3a4180893f8`. The same evidence file includes the July 7 funded live Fiber testnet settlement: public `ChannelReady` channels, faucet funding transactions, and payment hash `0xe28512a5139dcd8ce648d6ab8e2a6924f4ce1f64d1ce52a45212689dca859864` with status `Success`.
+Latest smoke result: on July 8, 2026, the demo store was redeployed against a disposable local FNN `v0.8.1` testnet node and created keyless live invoice `db6529e2-efe0-4451-84d5-7a4746585688` with payment hash `263221c4e16d2e005ed0b3a7dbabf38c85cf7f3df0f5b9856b203d633f64f52b`. The same evidence file includes the July 7 funded live Fiber testnet settlement: public `ChannelReady` channels, faucet funding transactions, and payment hash `0xe28512a5139dcd8ce648d6ab8e2a6924f4ce1f64d1ce52a45212689dca859864` with status `Success`.
 
 Latest demo checkout evidence: the local demo store completed a paid checkout and created transaction `987865e5-6d8c-47df-9d8c-ea906598a3b8`; see [docs/demo-evidence.md](docs/demo-evidence.md).
 

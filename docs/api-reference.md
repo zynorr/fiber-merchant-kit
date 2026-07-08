@@ -46,7 +46,13 @@ Returns machine-readable metadata for the running kit.
     "adminDashboard": "http://localhost:5173",
     "demoStore": "http://localhost:5174"
   },
-  "publicEndpoints": ["GET /", "GET /api/v1", "GET /api/v1/health"],
+  "publicEndpoints": [
+    "GET /",
+    "GET /api/v1",
+    "GET /api/v1/health",
+    "POST /api/v1/demo-store/checkout",
+    "GET /api/v1/demo-store/invoices/:id"
+  ],
   "authenticatedResources": ["invoices", "webhooks", "transactions"]
 }
 ```
@@ -56,6 +62,56 @@ Returns machine-readable metadata for the running kit.
 `GET /health`
 
 Returns `ok` when the configured Fiber node or demo client responds, and `degraded` when the Fiber node is unreachable.
+
+## Demo Store Checkout
+
+These endpoints are unauthenticated and exist for the bundled FiberStore demo. They create invoices through the server-side demo merchant so shopper browsers never receive a merchant API key.
+
+### Create Demo Checkout
+
+`POST /demo-store/checkout`
+
+Creates a Fiber invoice for the submitted demo product IDs. The server owns the catalog and calculates the total; the browser does not submit a trusted amount.
+
+**Request:**
+```json
+{
+  "items": [
+    { "productId": 1, "quantity": 2 }
+  ]
+}
+```
+
+**Response (201):**
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "paymentHash": "abc123...",
+  "invoiceAddress": "fibt1...",
+  "amount": "10000",
+  "currency": "CKB",
+  "status": "pending",
+  "order": {
+    "items": [
+      { "id": 1, "name": "Cyber Widget", "quantity": 2, "unitAmount": 5000, "amount": 10000 }
+    ],
+    "totalAmount": "10000",
+    "currency": "CKB"
+  }
+}
+```
+
+### Get Demo Checkout Invoice
+
+`GET /demo-store/invoices/:id`
+
+Returns and refreshes one demo-store invoice by ID.
+
+### Simulate Demo Checkout Payment
+
+`POST /demo-store/invoices/:id/simulate-payment`
+
+Demo mode only. Lets FiberStore complete a deterministic local checkout without exposing the merchant API key.
 
 ## Invoices
 

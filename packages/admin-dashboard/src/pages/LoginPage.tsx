@@ -1,13 +1,14 @@
 import { useState } from 'react';
-import { Zap, KeyRound, Shield, Loader2 } from 'lucide-react';
+import { Info, Zap, KeyRound, Shield } from 'lucide-react';
 import { Button } from '../components/ui';
 
 interface LoginPageProps {
   onLogin: (apiKey: string) => void;
   baseUrl: string;
+  notice?: string;
 }
 
-export default function LoginPage({ onLogin, baseUrl }: LoginPageProps) {
+export default function LoginPage({ onLogin, baseUrl, notice }: LoginPageProps) {
   const [key, setKey] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -94,6 +95,13 @@ export default function LoginPage({ onLogin, baseUrl }: LoginPageProps) {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
+            {notice && (
+              <div className="bg-blue-50 border border-blue-200 text-blue-700 text-sm px-4 py-3 rounded-lg flex items-start gap-2">
+                <Info className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                <span>{notice}</span>
+              </div>
+            )}
+
             <div className="space-y-2">
               <label className="block text-sm font-medium text-gray-700">
                 API Key

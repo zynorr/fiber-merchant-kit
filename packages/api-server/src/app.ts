@@ -18,6 +18,7 @@ import { createApiLimiter, createHealthLimiter } from './middleware/rate-limit';
 import { invoiceRouter } from './routes/invoices';
 import { webhookRouter } from './routes/webhooks';
 import { merchantRouter } from './routes/merchant';
+import { demoStoreRouter } from './routes/demo-store';
 import { getFiberClient } from './lib/fiber-client';
 
 const VERSION = '1.0.0';
@@ -44,6 +45,8 @@ function getDiscoveryPayload() {
       'GET /',
       'GET /api/v1',
       'GET /api/v1/health',
+      'POST /api/v1/demo-store/checkout',
+      'GET /api/v1/demo-store/invoices/:id',
     ],
     authenticatedResources: [
       'invoices',
@@ -153,6 +156,8 @@ export function createApp() {
       res.json({ status: 'degraded', version: VERSION, fiberNode: 'unreachable' });
     }
   });
+
+  app.use('/api/v1/demo-store', demoStoreRouter);
 
   // ── Auth-Protected Routes ────────────────────────────────────
 
