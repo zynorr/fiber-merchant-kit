@@ -15,6 +15,7 @@
 import { createApp } from './app';
 import { initDatabase, closeDb, seedDemoMerchant } from './db';
 import { validateEnv, formatWarnings } from './env';
+import { startSettlementWorker, stopSettlementWorker } from './services/settlement-worker';
 
 async function main() {
   // -- Validate environment variables ---------------------------
@@ -54,12 +55,14 @@ async function main() {
   |  Mode:     ${env.FIBER_NODE_RPC_URL ? 'Live (Fiber Node)' : 'Demo'}         |
   +----------------------------------------------+
     `);
+    startSettlementWorker();
   });
 
   // -- Graceful Shutdown -----------------------------------------
 
   function shutdown(signal: string) {
     console.log(`\n  Received ${signal}. Shutting down gracefully...`);
+    stopSettlementWorker();
     server.close(() => {
       closeDb();
       console.log('  Server shut down. Database saved and closed.');
@@ -79,6 +82,7 @@ async function main() {
   process.on('uncaughtException', (err) => {
     console.error('[Server] Uncaught exception:', err);
     // Use exit code 1 for uncaught errors to signal failure
+    stopSettlementWorker();
     server.close(() => {
       closeDb();
       process.exit(1);

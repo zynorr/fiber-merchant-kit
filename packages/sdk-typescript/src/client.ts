@@ -38,6 +38,7 @@ import type {
   WebhookTestResponse,
   Transaction,
   ChannelBalance,
+  FiberStatus,
   MerchantStats,
   ApiKey,
   PaginatedResponse,
@@ -49,6 +50,7 @@ export class MerchantClient {
   public readonly webhooks: WebhookResource;
   public readonly transactions: TransactionResource;
   public readonly balance: BalanceResource;
+  public readonly fiber: FiberResource;
   public readonly stats: StatsResource;
 
   constructor(options: MerchantClientOptions) {
@@ -70,6 +72,7 @@ export class MerchantClient {
     this.webhooks = new WebhookResource(this.fetch);
     this.transactions = new TransactionResource(this.fetch);
     this.balance = new BalanceResource(this.fetch);
+    this.fiber = new FiberResource(this.fetch);
     this.stats = new StatsResource(this.fetch);
   }
 
@@ -203,6 +206,15 @@ class BalanceResource {
   /** Get total balance across all channels */
   async getTotal(): Promise<{ local: string; remote: string; total: string }> {
     return this.fetch('/balance/total');
+  }
+}
+
+class FiberResource {
+  constructor(private fetch: $Fetch) {}
+
+  /** Get live/demo Fiber node, channel, and settlement worker status */
+  async getStatus(): Promise<FiberStatus> {
+    return this.fetch('/fiber/status');
   }
 }
 

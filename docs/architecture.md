@@ -9,6 +9,7 @@ Fiber Merchant Kit turns low-level Fiber Network Node RPC into merchant-grade pa
 - A REST API for invoices, refunds, transactions, channel balances, stats, and webhooks.
 - A durable local database for merchant state.
 - A webhook delivery engine with HMAC signatures, retries, delivery logs, and manual replay.
+- A live-mode settlement worker plus admin network status view for operating real Fiber nodes.
 - Admin and demo frontends for operating and demonstrating the flow.
 - TypeScript and Python SDKs for application integration.
 
@@ -46,7 +47,7 @@ flowchart LR
 
 | Component | Owns | Does Not Own | Key Files |
 |---|---|---|---|
-| API Server | Auth, validation, invoice lifecycle, DB writes, Fiber RPC calls, webhook dispatch | Browser UI state | `packages/api-server/src/routes/*`, `packages/api-server/src/db/index.ts`, `packages/api-server/src/services/webhook-delivery.ts` |
+| API Server | Auth, validation, invoice lifecycle, DB writes, Fiber RPC calls, settlement worker, webhook dispatch | Browser UI state | `packages/api-server/src/routes/*`, `packages/api-server/src/db/index.ts`, `packages/api-server/src/services/invoice-settlement.ts`, `packages/api-server/src/services/webhook-delivery.ts` |
 | SQLite Layer | Merchant, invoice, webhook, delivery, transaction persistence | Business decisions outside DB helpers | `packages/api-server/src/db/schema.ts`, `packages/api-server/src/db/index.ts` |
 | Fiber Client | Fiber node RPC abstraction and demo-mode simulation | Merchant auth or webhooks | `packages/api-server/src/services/fiber-client.ts`, `packages/api-server/src/lib/fiber-client.ts` |
 | Admin Dashboard | Merchant operations workflow | Payment truth or secret storage | `packages/admin-dashboard/src/pages/*` |
@@ -71,6 +72,7 @@ flowchart TB
     Invoices["Invoice Routes"]
     Webhooks["Webhook Routes"]
     Merchant["Merchant Routes"]
+    Settlement["Invoice Settlement Service"]
     Delivery["Webhook Delivery Engine"]
   end
 
@@ -88,7 +90,9 @@ flowchart TB
   Validation --> Invoices
   Validation --> Webhooks
   Validation --> Merchant
-  Invoices --> DB
+  Invoices --> Settlement
+  Settlement --> DB
+  Settlement --> Fiber
   Webhooks --> DB
   Merchant --> DB
   Invoices --> Fiber
@@ -122,7 +126,7 @@ sequenceDiagram
 
 Why this matters: merchants get one simple REST call while the server handles Fiber RPC details and records the invoice locally.
 
-### 2. Refresh Invoice Status
+### 2. Refresh Invoice Status And Worker Reconciliation
 
 ```mermaid
 sequenceDiagram
@@ -132,7 +136,7 @@ sequenceDiagram
   participant DB as SQLite
   participant Hook as Webhook Engine
 
-  App->>API: GET /api/v1/invoices/:id
+  App->>API: GET /api/v1/invoices/:id or worker tick
   API->>DB: Load merchant-scoped invoice
   API->>Fiber: getInvoiceStatus(paymentHash)
   Fiber-->>API: Open, Received, Paid, or Expired
@@ -147,7 +151,7 @@ sequenceDiagram
   API-->>App: Current invoice
 ```
 
-Why this matters: status refresh is idempotent. Repeated polling does not create duplicate successful transactions.
+Why this matters: status refresh is idempotent and reusable. User reads, dashboard polling, and the live-mode background worker all use the same settlement path, so repeated reconciliation does not create duplicate successful transactions.
 
 ### 3. Deliver Webhook
 
@@ -216,6 +220,7 @@ This keeps SQLite simple while giving JS and Python clients a predictable public
 | Promote pending incoming transaction | Keeps one canonical transaction for one invoice payment |
 | Retry webhook non-2xx responses | HTTP 500 is a delivery failure, not a successful attempt |
 | Replay webhook deliveries as new rows | Operators need a clean audit trail when re-sending a failed event |
+| Background settlement worker | Live-mode invoices can settle without a user opening each invoice |
 | Opaque cursor pagination | Allows stable created-at/id ordering without exposing implementation details |
 | Demo Fiber client | Judges can review the full product without running a Fiber node |
 
@@ -227,6 +232,8 @@ This keeps SQLite simple while giving JS and Python clients a predictable public
 | Invoice creation | Fake payment hashes and addresses | Fiber node invoice RPC |
 | Payment status | Randomized status simulation | Fiber node status polling |
 | Channels | Sample balances | Real channel list |
+| Settlement worker | Disabled by default | Enabled by default when a real Fiber RPC URL is configured |
+| Network status | Demo node and sample channels | Real node, channel, and worker status |
 | Setup cost | No external services | Fiber node credentials required |
 
 Production/testnet RPC configuration supports current FNN JSON-RPC method names, Biscuit bearer auth via `FIBER_NODE_RPC_AUTH_TOKEN`, private basic auth as a fallback, and a repeatable smoke command documented in [testnet-smoke.md](testnet-smoke.md).
@@ -238,7 +245,8 @@ Judges can inspect these files to validate the architecture:
 | Question | Where To Look |
 |---|---|
 | How is authentication enforced? | `packages/api-server/src/middleware/auth.ts` |
-| How are invoice state transitions handled? | `packages/api-server/src/routes/invoices.ts`, `packages/api-server/src/db/index.ts` |
+| How are invoice state transitions handled? | `packages/api-server/src/services/invoice-settlement.ts`, `packages/api-server/src/db/index.ts` |
+| How does background reconciliation run? | `packages/api-server/src/services/settlement-worker.ts`, `packages/api-server/src/index.ts` |
 | How are webhook retries implemented? | `packages/api-server/src/services/webhook-delivery.ts` |
 | How are API inputs validated? | `packages/api-server/src/validation.ts` |
 | How do we smoke-test a real Fiber testnet node? | `docs/testnet-smoke.md`, `packages/api-server/src/scripts/testnet-smoke.ts` |
@@ -251,7 +259,7 @@ Judges can inspect these files to validate the architecture:
 | Tradeoff | Why It Was Acceptable For Hackathon | Production Path |
 |---|---|---|
 | SQLite/sql.js instead of hosted DB | Zero-config setup and easy judging | PostgreSQL adapter |
-| Poll-on-read invoice refresh | Simple, observable, no worker dependency | Dedicated background worker or queue |
+| In-process settlement worker | Easy to inspect and enough for one API server | Durable queue worker for multi-instance deployments |
 | In-process webhook retry | Easy to inspect and test | Durable queue workers and scheduling |
 | Single API key auth model | Fits demo merchant workflow | Merchant users, teams, RBAC |
 | Demo Fiber client | Makes the project runnable by anyone | Real Fiber node deployment |

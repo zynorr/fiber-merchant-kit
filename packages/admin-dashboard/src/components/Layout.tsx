@@ -5,6 +5,7 @@ import {
   ArrowLeftRight,
   Webhook,
   Wallet,
+  Network,
   LogOut,
   Zap,
   ChevronDown,
@@ -23,6 +24,7 @@ const navItems = [
   { path: '/transactions', label: 'Transactions', icon: ArrowLeftRight },
   { path: '/webhooks', label: 'Webhooks', icon: Webhook },
   { path: '/balance', label: 'Balance', icon: Wallet },
+  { path: '/fiber', label: 'Network', icon: Network },
 ];
 
 export default function Layout({ children, apiKey, onLogout }: LayoutProps) {

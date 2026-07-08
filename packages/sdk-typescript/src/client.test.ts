@@ -57,6 +57,7 @@ describe('MerchantClient', () => {
       expect(client.webhooks).toBeDefined();
       expect(client.transactions).toBeDefined();
       expect(client.balance).toBeDefined();
+      expect(client.fiber).toBeDefined();
       expect(client.stats).toBeDefined();
     });
   });
@@ -377,6 +378,49 @@ describe('MerchantClient', () => {
         expect(mockFetch).toHaveBeenCalledWith('/balance/total');
         expect(result.total).toBe('1000000');
       });
+    });
+  });
+
+  describe('fiber', () => {
+    const mockStatus = {
+      mode: 'live',
+      reachable: true,
+      rpcUrlConfigured: true,
+      currency: 'Fibt',
+      checkedAt: '2026-07-08T12:00:00Z',
+      worker: {
+        enabled: true,
+        active: true,
+        running: false,
+        mode: 'live',
+        intervalMs: 30000,
+        batchSize: 25,
+      },
+      node: {
+        nodeId: '02abc',
+        version: '0.6.0',
+        peersCount: 2,
+        channelsCount: 1,
+        pendingChannelsCount: 0,
+      },
+      channels: {
+        total: 1,
+        ready: 1,
+        pending: 0,
+        failed: 0,
+        localBalance: '500000',
+        remoteBalance: '500000',
+        totalCapacity: '1000000',
+        items: [],
+      },
+    };
+
+    it('should GET /fiber/status', async () => {
+      mockFetch.mockResolvedValue(mockStatus);
+      const result = await client.fiber.getStatus();
+      expect(mockFetch).toHaveBeenCalledWith('/fiber/status');
+      expect(result.reachable).toBe(true);
+      expect(result.worker.enabled).toBe(true);
     });
   });
 

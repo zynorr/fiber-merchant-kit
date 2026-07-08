@@ -24,6 +24,9 @@ The server will start on `http://localhost:3001` and display your demo API key i
 | FIBER_NODE_CURRENCY | Fibt | Fiber invoice network currency: Fibt=testnet, Fibb=mainnet, Fibd=dev |
 | FIBER_NODE_RPC_USER | - | Optional basic auth username for private/local RPC |
 | FIBER_NODE_RPC_PASSWORD | - | Optional basic auth password for private/local RPC |
+| FIBER_SETTLEMENT_WORKER | live mode default | Set `true` or `false` to force the background invoice settlement worker on or off |
+| FIBER_SETTLEMENT_WORKER_INTERVAL_MS | 30000 | Worker polling interval in milliseconds |
+| FIBER_SETTLEMENT_WORKER_BATCH_SIZE | 25 | Maximum open invoices checked per worker tick |
 | CORS_ORIGIN | * | Allowed CORS origin |
 | FIBER_MERCHANT_DB_PATH | ./data/merchant.db | SQLite database path |
 
@@ -62,6 +65,7 @@ All authenticated endpoints require `Authorization: Bearer fm_sk_...` header.
 - `GET /api/v1/balance/total` — Total balance
 - `GET /api/v1/stats` — Dashboard statistics
 - `GET /api/v1/stats/revenue?days=30` — Revenue history
+- `GET /api/v1/fiber/status` — Fiber node, channel, and settlement worker status
 - `GET /api/v1/health` — Health check
 
 ### Transactions

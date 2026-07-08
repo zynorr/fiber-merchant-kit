@@ -10,7 +10,7 @@ This repository is organized so hackathon judges can review the product, archite
 |---|---|---|
 | 2 minutes | [JUDGES.md](JUDGES.md) | The fastest review path, demo script, and evidence map |
 | 5 minutes | [docs/architecture.md](docs/architecture.md) | System design, data flows, boundaries, and tradeoffs |
-| 10 minutes | [packages/api-server/src/routes/invoices.ts](packages/api-server/src/routes/invoices.ts) and [packages/api-server/src/services/webhook-delivery.ts](packages/api-server/src/services/webhook-delivery.ts) | Core invoice lifecycle and webhook reliability |
+| 10 minutes | [packages/api-server/src/services/invoice-settlement.ts](packages/api-server/src/services/invoice-settlement.ts) and [packages/api-server/src/services/webhook-delivery.ts](packages/api-server/src/services/webhook-delivery.ts) | Core invoice lifecycle and webhook reliability |
 | 15 minutes | Run `npm run dev` | API, dashboard, and demo store running together |
 
 ## The Problem It Solves
@@ -40,7 +40,7 @@ Fiber Merchant Kit fills that gap with a Stripe-style merchant stack for Fiber N
 | Create payment requests | REST API and SDK invoice creation |
 | Know when a payment settles | Auto-polling invoice status updates and idempotent state transitions |
 | Fulfill orders automatically | HMAC-signed webhooks with retry and delivery logs |
-| Debug payment operations | Dashboard views for invoices, transactions, balances, webhook logs |
+| Debug payment operations | Dashboard views for invoices, transactions, balances, webhook logs, and Fiber node status |
 | Integrate quickly | TypeScript SDK and Python SDK |
 | Evaluate without infrastructure | Demo Fiber client mode and demo storefront |
 
@@ -130,9 +130,10 @@ When the API server starts, copy the printed `fm_sk_...` API key and use it in t
 1. Open the dashboard and paste the demo API key.
 2. Create an invoice from the dashboard.
 3. Open the invoice detail page and poll/refresh status.
-4. Register a webhook endpoint and send a test event.
-5. Open the demo store, add products, and start checkout.
-6. Use the demo payment action to complete checkout, then confirm the paid invoice in the dashboard.
+4. Inspect the Network page for node, channel, and settlement worker status.
+5. Register a webhook endpoint and send a test event.
+6. Open the demo store, add products, and start checkout.
+7. Use the demo payment action to complete checkout, then confirm the paid invoice in the dashboard.
 
 Demo mode works without a real Fiber node. For testnet/production, set `FIBER_NODE_RPC_URL` plus either `FIBER_NODE_RPC_AUTH_TOKEN` for protected Fiber RPC endpoints or `FIBER_NODE_RPC_USER`/`FIBER_NODE_RPC_PASSWORD` for private basic-auth setups. See [docs/testnet-smoke.md](docs/testnet-smoke.md) for both RPC smoke checks and the July 7, 2026 funded settlement evidence.
 
@@ -147,6 +148,7 @@ Demo mode works without a real Fiber node. For testnet/production, set `FIBER_NO
 | HMAC-signed webhooks | Lets merchants verify events came from their payment server |
 | Retry on non-2xx and network errors | Matches real webhook reliability expectations |
 | Manual webhook replay | Lets operators retry a failed delivery from the API or dashboard |
+| Background settlement worker | Live-mode invoices reconcile even when nobody is viewing the invoice page |
 | SDKs mirror API contracts | Judges can evaluate both direct HTTP and library integration paths |
 
 ## API Snapshot
@@ -170,6 +172,7 @@ Important endpoints:
 | `POST /api/v1/webhooks/:id/deliveries/:deliveryId/retry` | Replay a failed webhook delivery |
 | `GET /api/v1/transactions` | List payment history |
 | `GET /api/v1/stats` | Dashboard metrics |
+| `GET /api/v1/fiber/status` | Fiber node, channel, and settlement worker status |
 
 Full reference: [docs/api-reference.md](docs/api-reference.md)
 
@@ -192,6 +195,7 @@ const invoice = await client.invoices.create({
 });
 
 const latest = await client.invoices.get(invoice.id);
+const fiberStatus = await client.fiber.getStatus();
 ```
 
 Python:
@@ -226,7 +230,7 @@ npm run testnet:smoke
 
 The testnet smoke command requires a real FNN RPC endpoint and is documented in [docs/testnet-smoke.md](docs/testnet-smoke.md). Without that endpoint, it exits with a clear configuration error instead of pretending demo mode is a chain-backed test.
 
-Latest smoke result: on July 7, 2026, the adapter and Merchant API passed live-mode invoice creation against a local FNN `v0.8.1` testnet node using the official config. The node connected to a bootnode peer and saw 46 graph nodes plus 98 graph channels. Payment settlement still requires a funded channel.
+Latest smoke result: on July 7, 2026, the adapter and Merchant API passed live-mode invoice creation against a local FNN `v0.8.1` testnet node using the official config. The same evidence file now includes a funded live Fiber testnet settlement: public `ChannelReady` channels, faucet funding transactions, and payment hash `0xe28512a5139dcd8ce648d6ab8e2a6924f4ce1f64d1ce52a45212689dca859864` with status `Success`.
 
 Latest demo checkout evidence: the local demo store completed a paid checkout and created transaction `987865e5-6d8c-47df-9d8c-ea906598a3b8`; see [docs/demo-evidence.md](docs/demo-evidence.md).
 
@@ -239,7 +243,7 @@ Demo mode is intentionally frictionless for judging. For production:
 | Persistence | SQLite via sql.js | PostgreSQL adapter for horizontal scale |
 | Auth | API key bearer tokens | Merchant users and RBAC |
 | Webhooks | Signed delivery, retry logs, and manual replay | Durable background queue |
-| Fiber RPC | Current FNN RPC wrapper, bearer/basic auth, demo mode, and testnet smoke command | Node health monitoring and alerting |
+| Fiber RPC | Current FNN RPC wrapper, bearer/basic auth, demo mode, status endpoint, and testnet smoke command | Node health alerting and multi-node failover |
 
 ## Links
 

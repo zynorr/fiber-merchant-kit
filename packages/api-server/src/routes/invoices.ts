@@ -11,53 +11,23 @@
 
 import { Router, Response } from 'express';
 import { AuthenticatedRequest } from '../middleware/auth';
-import { dispatchWebhookEvent } from '../services/webhook-delivery';
 import * as db from '../db';
 import crypto from 'crypto';
 import { toCamelCase, rowsToCamelCase } from '../lib/utils';
 import { getFiberClient } from '../lib/fiber-client';
 import { z } from 'zod';
 import { createInvoiceSchema, listInvoicesQuerySchema, refundInvoiceSchema } from '../validation';
-import type { DbInvoice } from '../db/types';
+import {
+  emitInvoiceWebhookEvent,
+  markInvoicePaid,
+  refreshInvoiceSettlement,
+} from '../services/invoice-settlement';
 
 const router = Router();
-
-function emitWebhookEvent(
-  event: string,
-  payload: Record<string, unknown>,
-  merchantId?: string,
-): void {
-  void Promise.resolve(dispatchWebhookEvent(event, payload, { merchantId })).catch((err: unknown) => {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error(`[Invoices] Failed to dispatch ${event}:`, message);
-  });
-}
 
 function isDemoSimulationEnabled(): boolean {
   return process.env.NODE_ENV !== 'production'
     && (!process.env.FIBER_NODE_RPC_URL || process.env.FIBER_NODE_RPC_URL === 'demo');
-}
-
-function markInvoicePaid(invoice: DbInvoice, merchantId?: string): void {
-  const changed = db.updateInvoiceStatus(invoice.id, 'paid', merchantId);
-  if (!changed) return;
-
-  db.upsertIncomingPaymentTransaction({
-    paymentHash: invoice.payment_hash,
-    invoiceId: invoice.id,
-    amount: invoice.amount,
-    currency: invoice.currency,
-    description: invoice.description,
-    metadata: typeof invoice.metadata === 'string' ? undefined : invoice.metadata,
-  });
-
-  emitWebhookEvent('invoice.paid', {
-    id: invoice.id,
-    amount: invoice.amount,
-    currency: invoice.currency,
-    status: 'paid',
-    paidAt: new Date().toISOString(),
-  }, merchantId);
 }
 
 // ── Create Invoice ────────────────────────────────────────────
@@ -113,7 +83,7 @@ router.post('/', async (req: AuthenticatedRequest, res: Response) => {
     });
 
     // Fire webhook event asynchronously
-    emitWebhookEvent('invoice.created', {
+    emitInvoiceWebhookEvent('invoice.created', {
       id: invoiceId,
       amount: String(amount),
       currency: currency || 'CKB',
@@ -171,55 +141,7 @@ router.get('/:id', async (req: AuthenticatedRequest, res: Response) => {
       return;
     }
 
-    // Poll Fiber node for latest status on pending invoices
-    if (invoice.status === 'pending' || invoice.status === 'received') {
-      const fiber = getFiberClient();
-      try {
-        const nodeStatus = await fiber.getInvoiceStatus(invoice.payment_hash);
-        if (nodeStatus.status === 'Paid') {
-          markInvoicePaid(invoice, req.merchantId);
-        } else if (nodeStatus.status === 'Received' && invoice.status === 'pending') {
-          const changed = db.updateInvoiceStatus(invoice.id, 'received', req.merchantId);
-          if (changed) {
-            emitWebhookEvent('invoice.received', {
-              id: invoice.id,
-              amount: invoice.amount,
-              currency: invoice.currency,
-              status: 'received',
-            }, req.merchantId);
-          }
-        } else if (nodeStatus.status === 'Expired' && invoice.status === 'pending') {
-          const changed = db.updateInvoiceStatus(invoice.id, 'expired', req.merchantId);
-          if (changed) {
-            emitWebhookEvent('invoice.expired', {
-              id: invoice.id,
-              amount: invoice.amount,
-              currency: invoice.currency,
-              status: 'expired',
-            }, req.merchantId);
-          }
-        }
-      } catch {
-        // Node unreachable — return cached status
-      }
-
-      const latest = db.getInvoice(invoice.id, req.merchantId);
-      if (
-        latest?.status === 'pending' &&
-        new Date(latest.expires_at).getTime() <= Date.now()
-      ) {
-        const changed = db.updateInvoiceStatus(invoice.id, 'expired', req.merchantId);
-        if (changed) {
-          emitWebhookEvent('invoice.expired', {
-            id: invoice.id,
-            paymentHash: invoice.payment_hash,
-            amount: invoice.amount,
-            currency: invoice.currency,
-            status: 'expired',
-          }, req.merchantId);
-        }
-      }
-    }
+    await refreshInvoiceSettlement(invoice, req.merchantId);
 
     const updated = db.getInvoice(req.params.id, req.merchantId);
     res.json(toCamelCase(updated!));
@@ -244,7 +166,7 @@ router.post('/:id/cancel', async (req: AuthenticatedRequest, res: Response) => {
     }
 
     db.updateInvoiceStatus(invoice.id, 'cancelled', req.merchantId);
-    emitWebhookEvent('invoice.cancelled', {
+    emitInvoiceWebhookEvent('invoice.cancelled', {
       id: invoice.id,
       status: 'cancelled',
     }, req.merchantId);
@@ -318,7 +240,7 @@ router.post('/:id/refund', async (req: AuthenticatedRequest, res: Response) => {
         description: parsed.reason || 'Refund',
       });
 
-      emitWebhookEvent('invoice.refunded', {
+      emitInvoiceWebhookEvent('invoice.refunded', {
         id: invoice.id,
         amount: invoice.amount,
         currency: invoice.currency,

@@ -4,7 +4,7 @@
  * Mocks the database and Fiber node client to test HTTP request/response flow.
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../app';
 import type { DbMerchant, DbInvoice, DbWebhook, DbWebhookDelivery } from '../db/types';
@@ -88,6 +88,10 @@ describe('API Routes', () => {
       peers: 0,
       channels: 2,
     });
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 
   // ── Health ─────────────────────────────────────────────────
@@ -705,6 +709,64 @@ describe('API Routes', () => {
         expect(res.body.local).toBe('700000');
         expect(res.body.remote).toBe('1300000');
         expect(res.body.total).toBe('2000000');
+      });
+    });
+  });
+
+  // ── Fiber Status ─────────────────────────────────────────────
+
+  describe('Fiber status routes', () => {
+    describe('GET /api/v1/fiber/status', () => {
+      it('returns live node, channel, and worker status', async () => {
+        vi.stubEnv('FIBER_NODE_RPC_URL', 'http://localhost:8227');
+        mockFiberClient.getNodeInfo.mockResolvedValue({
+          node_id: '02node',
+          version: '0.6.0',
+          peers_count: '0x2',
+          channels_count: '0x1',
+          pending_channels_count: '0x0',
+        });
+        mockFiberClient.listChannels.mockResolvedValue([
+          {
+            localBalance: '700000',
+            remoteBalance: '300000',
+            capacity: '1000000',
+            asset: 'CKB',
+            channelId: 'ch-1',
+            state: 'ChannelReady',
+            peerPubkey: '02peer',
+          },
+        ]);
+
+        const res = await request(app)
+          .get('/api/v1/fiber/status')
+          .set('Authorization', `Bearer ${API_KEY}`);
+
+        expect(res.status).toBe(200);
+        expect(res.body.mode).toBe('live');
+        expect(res.body.reachable).toBe(true);
+        expect(res.body.node.nodeId).toBe('02node');
+        expect(res.body.node.peersCount).toBe(2);
+        expect(res.body.channels.ready).toBe(1);
+        expect(res.body.channels.localBalance).toBe('700000');
+        expect(res.body.worker.enabled).toBe(true);
+      });
+
+      it('returns degraded Fiber status when the node is unreachable', async () => {
+        vi.stubEnv('FIBER_NODE_RPC_URL', 'http://localhost:8227');
+        mockFiberClient.getNodeInfo.mockRejectedValue(new Error('Connection refused'));
+        mockFiberClient.listChannels.mockRejectedValue(new Error('Connection refused'));
+
+        const res = await request(app)
+          .get('/api/v1/fiber/status')
+          .set('Authorization', `Bearer ${API_KEY}`);
+
+        expect(res.status).toBe(200);
+        expect(res.body.mode).toBe('live');
+        expect(res.body.reachable).toBe(false);
+        expect(res.body.node).toBeNull();
+        expect(res.body.channels.total).toBe(0);
+        expect(res.body.error).toMatch(/Connection refused/);
       });
     });
   });

@@ -273,6 +273,50 @@ Queues a fresh delivery attempt using the stored event payload. The original del
 
 `GET /stats/revenue?days=30`
 
+## Fiber Status
+
+### Network Status
+
+`GET /fiber/status`
+
+Returns a normalized view of the connected Fiber node, channels, and background invoice settlement worker. The endpoint never exposes Fiber RPC credentials.
+
+**Response:**
+```json
+{
+  "mode": "live",
+  "reachable": true,
+  "rpcUrlConfigured": true,
+  "currency": "Fibt",
+  "checkedAt": "2026-07-08T12:00:00Z",
+  "worker": {
+    "enabled": true,
+    "active": true,
+    "running": false,
+    "mode": "live",
+    "intervalMs": 30000,
+    "batchSize": 25
+  },
+  "node": {
+    "nodeId": "02abc...",
+    "version": "0.8.1",
+    "peersCount": 2,
+    "channelsCount": 1,
+    "pendingChannelsCount": 0
+  },
+  "channels": {
+    "total": 1,
+    "ready": 1,
+    "pending": 0,
+    "failed": 0,
+    "localBalance": "700000",
+    "remoteBalance": "300000",
+    "totalCapacity": "1000000",
+    "items": []
+  }
+}
+```
+
 ## Transactions
 
 ### List Transactions

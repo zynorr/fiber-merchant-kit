@@ -90,10 +90,11 @@ The same evidence file also includes a funded live testnet settlement completed 
 2. Open the admin dashboard.
 3. Create an invoice.
 4. Open invoice detail and watch status update through polling.
-5. Register a webhook endpoint.
-6. Send a webhook test event, inspect delivery logs, and retry a failed delivery if one is present.
-7. Open the demo store and complete a checkout flow.
-8. Return to dashboard and inspect invoices, transactions, and balances.
+5. Open the Network page and inspect Fiber node, channel, and settlement worker status.
+6. Register a webhook endpoint.
+7. Send a webhook test event, inspect delivery logs, and retry a failed delivery if one is present.
+8. Open the demo store and complete a checkout flow.
+9. Return to dashboard and inspect invoices, transactions, and balances.
 
 In demo mode, the store exposes a payment simulation action so judges can complete the checkout deterministically without running a real Fiber wallet.
 
@@ -103,7 +104,9 @@ In demo mode, the store exposes a payment simulation action so judges can comple
 |---|---|
 | API key auth | `packages/api-server/src/middleware/auth.ts` |
 | Request validation | `packages/api-server/src/validation.ts` |
-| Invoice lifecycle | `packages/api-server/src/routes/invoices.ts` |
+| Invoice lifecycle | `packages/api-server/src/services/invoice-settlement.ts`, `packages/api-server/src/routes/invoices.ts` |
+| Background settlement worker | `packages/api-server/src/services/settlement-worker.ts` |
+| Fiber network status API | `packages/api-server/src/services/fiber-status.ts`, `packages/api-server/src/routes/merchant.ts` |
 | Idempotent DB transitions | `packages/api-server/src/db/index.ts` |
 | Fiber RPC wrapper and demo mode | `packages/api-server/src/services/fiber-client.ts` |
 | Webhook retry/signing/logs/replay | `packages/api-server/src/services/webhook-delivery.ts` |
@@ -151,7 +154,7 @@ This is not just a UI demo. The system is structured around payment infrastructu
 - Trust boundary: Fiber credentials stay server-side.
 - Reliability: webhooks retry, record delivery attempts, and support manual replay.
 - Consistency: invoice status transitions are idempotent.
-- Operability: dashboard exposes invoices, transactions, balances, and webhook logs.
+- Operability: dashboard exposes invoices, transactions, balances, network status, and webhook logs.
 - Integration: SDKs are first-class, not an afterthought.
 - Judge accessibility: demo mode removes external setup from the evaluation path.
 
@@ -164,7 +167,7 @@ The current architecture is intentionally hackathon-friendly and production-shap
 | sql.js SQLite | PostgreSQL adapter |
 | In-process webhook retry | Durable queue workers and scheduling |
 | Single API key auth | Merchant users, teams, RBAC |
-| Poll-on-read status refresh | Background worker plus event-driven updates |
+| In-process settlement worker | Durable queue worker for multi-instance deployments |
 | Demo mode | Real Fiber node deployment |
 | Testnet smoke plus funded settlement evidence | Repeatable production monitoring against funded channels |
 

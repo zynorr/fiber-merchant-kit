@@ -87,6 +87,25 @@ describe('validateEnv', () => {
     expect(warnings.filter((w) => w.severity === 'error')).toHaveLength(0);
   });
 
+  it('accepts settlement worker configuration', () => {
+    vi.stubEnv('FIBER_SETTLEMENT_WORKER', 'true');
+    vi.stubEnv('FIBER_SETTLEMENT_WORKER_INTERVAL_MS', '15000');
+    vi.stubEnv('FIBER_SETTLEMENT_WORKER_BATCH_SIZE', '10');
+    const { env, warnings } = validateEnv();
+    expect(env.FIBER_SETTLEMENT_WORKER).toBe('true');
+    expect(env.FIBER_SETTLEMENT_WORKER_INTERVAL_MS).toBe('15000');
+    expect(env.FIBER_SETTLEMENT_WORKER_BATCH_SIZE).toBe('10');
+    expect(warnings.filter((w) => w.severity === 'error')).toHaveLength(0);
+  });
+
+  it('errors on invalid settlement worker interval', () => {
+    vi.stubEnv('FIBER_SETTLEMENT_WORKER_INTERVAL_MS', '-1');
+    const { warnings } = validateEnv();
+    const intervalErr = warnings.find((w) => w.field === 'FIBER_SETTLEMENT_WORKER_INTERVAL_MS');
+    expect(intervalErr).toBeDefined();
+    expect(intervalErr!.severity).toBe('error');
+  });
+
   it('does not require basic auth password when bearer token is set', () => {
     vi.stubEnv('FIBER_NODE_RPC_URL', 'http://localhost:8227');
     vi.stubEnv('FIBER_NODE_RPC_AUTH_TOKEN', 'test-biscuit-token');

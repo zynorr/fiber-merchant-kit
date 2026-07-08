@@ -9,6 +9,7 @@ import {
   Plus,
   Webhook,
   Wallet,
+  Network,
   ArrowRight,
 } from 'lucide-react';
 import { StatCard, Card, CardHeader, CardTitle } from '../components/ui';
@@ -114,7 +115,7 @@ export default function DashboardPage({ client }: DashboardPageProps) {
         <CardHeader>
           <CardTitle>Quick Actions</CardTitle>
         </CardHeader>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
           <Link
             to="/invoices"
             className="flex items-center gap-4 p-4 rounded-lg border border-gray-100 hover:border-fiber-200 hover:bg-fiber-50/50 transition-all duration-150 group"
@@ -153,6 +154,19 @@ export default function DashboardPage({ client }: DashboardPageProps) {
               <p className="text-xs text-gray-500">View channel balances</p>
             </div>
             <ArrowRight className="h-4 w-4 text-gray-300 group-hover:text-violet-600 transition-colors" />
+          </Link>
+          <Link
+            to="/fiber"
+            className="flex items-center gap-4 p-4 rounded-lg border border-gray-100 hover:border-fiber-200 hover:bg-fiber-50/50 transition-all duration-150 group"
+          >
+            <div className="w-10 h-10 rounded-lg bg-sky-50 flex items-center justify-center text-sky-600 group-hover:scale-110 transition-transform">
+              <Network className="h-5 w-5" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-gray-900">Inspect Network</p>
+              <p className="text-xs text-gray-500">Verify node and channels</p>
+            </div>
+            <ArrowRight className="h-4 w-4 text-gray-300 group-hover:text-sky-600 transition-colors" />
           </Link>
         </div>
       </Card>

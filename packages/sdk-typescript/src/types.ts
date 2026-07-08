@@ -148,6 +148,52 @@ export interface ChannelBalance {
   peerPubkey: string;
 }
 
+/** Background invoice settlement worker status */
+export interface SettlementWorkerStatus {
+  enabled: boolean;
+  active: boolean;
+  running: boolean;
+  mode: 'demo' | 'live';
+  intervalMs: number;
+  batchSize: number;
+}
+
+/** Normalized Fiber node info for dashboard and diagnostics */
+export interface FiberNodeStatus {
+  nodeId: string;
+  alias?: string;
+  version?: string;
+  chainHash?: string;
+  peersCount: number;
+  channelsCount: number;
+  pendingChannelsCount: number;
+}
+
+/** Channel summary returned by the Fiber status endpoint */
+export interface FiberChannelSummary {
+  total: number;
+  ready: number;
+  pending: number;
+  failed: number;
+  localBalance: string;
+  remoteBalance: string;
+  totalCapacity: string;
+  items: ChannelBalance[];
+}
+
+/** Live/demo Fiber node health and settlement status */
+export interface FiberStatus {
+  mode: 'demo' | 'live';
+  reachable: boolean;
+  rpcUrlConfigured: boolean;
+  currency: string;
+  checkedAt: string;
+  worker: SettlementWorkerStatus;
+  node: FiberNodeStatus | null;
+  channels: FiberChannelSummary;
+  error?: string;
+}
+
 /** Merchant API key */
 export interface ApiKey {
   id: string;

@@ -16,6 +16,7 @@ import { toCamelCase, rowsToCamelCase } from '../lib/utils';
 import { getFiberClient } from '../lib/fiber-client';
 import { z } from 'zod';
 import { listTransactionsQuerySchema, revenueQuerySchema } from '../validation';
+import { getFiberNetworkStatus } from '../services/fiber-status';
 
 const router = Router();
 
@@ -91,6 +92,17 @@ router.get('/balance/total', async (_req: AuthenticatedRequest, res: Response) =
       remote: remote.toString(),
       total: (local + remote).toString(),
     });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    res.status(500).json({ error: message });
+  }
+});
+
+// ── Fiber Network Status ─────────────────────────────────────────────────
+
+router.get('/fiber/status', async (_req: AuthenticatedRequest, res: Response) => {
+  try {
+    res.json(await getFiberNetworkStatus());
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     res.status(500).json({ error: message });

@@ -41,6 +41,31 @@ const envSchema = z.object({
 
   FIBER_NODE_CURRENCY: z.enum(['Fibt', 'Fibb', 'Fibd']).optional(),
 
+  // Invoice Settlement Worker
+  FIBER_SETTLEMENT_WORKER: z
+    .string()
+    .optional()
+    .refine(
+      (v) => v === undefined || ['true', 'false'].includes(v.toLowerCase()),
+      'FIBER_SETTLEMENT_WORKER must be "true" or "false"',
+    ),
+
+  FIBER_SETTLEMENT_WORKER_INTERVAL_MS: z
+    .string()
+    .optional()
+    .refine(
+      (v) => v === undefined || (!isNaN(parseInt(v, 10)) && parseInt(v, 10) > 0),
+      'FIBER_SETTLEMENT_WORKER_INTERVAL_MS must be a positive integer (milliseconds)',
+    ),
+
+  FIBER_SETTLEMENT_WORKER_BATCH_SIZE: z
+    .string()
+    .optional()
+    .refine(
+      (v) => v === undefined || (!isNaN(parseInt(v, 10)) && parseInt(v, 10) > 0),
+      'FIBER_SETTLEMENT_WORKER_BATCH_SIZE must be a positive integer',
+    ),
+
   // CORS
   CORS_ORIGIN: z.string().optional(),
 

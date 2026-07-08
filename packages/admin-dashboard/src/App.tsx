@@ -9,6 +9,7 @@ import InvoiceDetailPage from './pages/InvoiceDetailPage';
 import WebhooksPage from './pages/WebhooksPage';
 import TransactionsPage from './pages/TransactionsPage';
 import BalancePage from './pages/BalancePage';
+import FiberPage from './pages/FiberPage';
 
 export type AppContextType = {
   client: MerchantClient | null;
@@ -44,6 +45,7 @@ export default function App() {
         <Route path="/webhooks" element={<WebhooksPage client={client} />} />
         <Route path="/transactions" element={<TransactionsPage client={client} />} />
         <Route path="/balance" element={<BalancePage client={client} />} />
+        <Route path="/fiber" element={<FiberPage client={client} />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Layout>

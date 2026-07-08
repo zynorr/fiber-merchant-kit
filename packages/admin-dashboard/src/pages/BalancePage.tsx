@@ -108,8 +108,9 @@ export default function BalancePage({ client }: BalancePageProps) {
               <div className="space-y-3">
                 {channels.map((ch, i) => {
                   const localPct = Number(ch.capacity) > 0
-                    ? (Number(ch.localBalance) / Number(ch.capacity)) * 100
+                    ? Math.min(100, Math.max(0, (Number(ch.localBalance) / Number(ch.capacity)) * 100))
                     : 50;
+                  const ready = ch.state.toLowerCase().includes('ready');
                   return (
                     <div
                       key={ch.channelId || i}
@@ -117,7 +118,7 @@ export default function BalancePage({ client }: BalancePageProps) {
                     >
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-2">
-                          <span className={`w-2 h-2 rounded-full ${ch.state === 'Ready' ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                          <span className={`w-2 h-2 rounded-full ${ready ? 'bg-emerald-500' : 'bg-amber-500'}`} />
                           <code className="text-xs font-mono text-gray-600">
                             {ch.channelId ? `${ch.channelId.slice(0, 8)}...${ch.channelId.slice(-4)}` : 'Demo Channel'}
                           </code>
