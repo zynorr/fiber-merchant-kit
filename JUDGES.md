@@ -93,7 +93,7 @@ The same evidence file also includes a funded live testnet settlement completed 
 5. Open the Network page and inspect Fiber node, channel, and settlement worker status.
 6. Click Run Settlement and confirm the activity summary updates.
 7. Register a webhook endpoint.
-8. Send a webhook test event, inspect delivery logs, and retry a failed delivery if one is present.
+8. Send a webhook test event, inspect delivery health, expand the payload, and retry a failed delivery if one is present.
 9. Open the demo store and complete a checkout flow.
 10. Return to dashboard and inspect invoices, transactions, and balances.
 
@@ -110,7 +110,7 @@ In demo mode, the store exposes a payment simulation action so judges can comple
 | Fiber network status API | `packages/api-server/src/services/fiber-status.ts`, `packages/api-server/src/routes/merchant.ts` |
 | Idempotent DB transitions | `packages/api-server/src/db/index.ts` |
 | Fiber RPC wrapper and demo mode | `packages/api-server/src/services/fiber-client.ts` |
-| Webhook retry/signing/logs/replay | `packages/api-server/src/services/webhook-delivery.ts` |
+| Webhook retry/signing/logs/replay | `packages/api-server/src/services/webhook-delivery.ts`, `packages/admin-dashboard/src/pages/WebhooksPage.tsx` |
 | Webhook API and delivery log response | `packages/api-server/src/routes/webhooks.ts` |
 | Dashboard workflows | `packages/admin-dashboard/src/pages` |
 | Demo checkout | `packages/demo-store/src/App.tsx` |

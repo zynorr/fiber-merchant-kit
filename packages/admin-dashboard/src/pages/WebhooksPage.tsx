@@ -1,6 +1,21 @@
 import { useEffect, useState } from 'react';
 import { MerchantClient, WebhookDelivery, WebhookEndpoint } from '@fiber-merchant/sdk';
-import { Plus, Webhook, Trash2, Send, Check, X, Loader2, Activity, RefreshCw, RotateCcw } from 'lucide-react';
+import {
+  Activity,
+  Check,
+  Clipboard,
+  Eye,
+  EyeOff,
+  FileJson,
+  Loader2,
+  Plus,
+  RefreshCw,
+  RotateCcw,
+  Send,
+  Trash2,
+  Webhook,
+  X,
+} from 'lucide-react';
 import { Button, Card, CardHeader, CardTitle, Badge } from '../components/ui';
 import Input from '../components/ui/Input';
 
@@ -13,6 +28,37 @@ const EVENTS = [
   'invoice.expired', 'invoice.cancelled', 'invoice.refunded',
 ];
 
+function parseWebhookEvents(events: WebhookEndpoint['events']): string[] {
+  if (Array.isArray(events)) return events;
+  try {
+    const parsed = JSON.parse(events);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function formatPayload(payload: unknown): string {
+  if (typeof payload === 'string') return payload;
+  try {
+    return JSON.stringify(payload, null, 2);
+  } catch {
+    return String(payload);
+  }
+}
+
+function summarizeDeliveries(list: WebhookDelivery[]) {
+  return list.reduce(
+    (summary, delivery) => ({
+      total: summary.total + 1,
+      delivered: summary.delivered + (delivery.success ? 1 : 0),
+      failed: summary.failed + (delivery.success ? 0 : 1),
+      attempts: summary.attempts + delivery.attempts,
+    }),
+    { total: 0, delivered: 0, failed: 0, attempts: 0 },
+  );
+}
+
 export default function WebhooksPage({ client }: WebhooksPageProps) {
   const [webhooks, setWebhooks] = useState<WebhookEndpoint[]>([]);
   const [loading, setLoading] = useState(true);
@@ -22,6 +68,7 @@ export default function WebhooksPage({ client }: WebhooksPageProps) {
   const [testingId, setTestingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [expandedDeliveryId, setExpandedDeliveryId] = useState<string | null>(null);
   const [deliveries, setDeliveries] = useState<Record<string, WebhookDelivery[]>>({});
   const [loadingDeliveriesId, setLoadingDeliveriesId] = useState<string | null>(null);
   const [retryingDeliveryId, setRetryingDeliveryId] = useState<string | null>(null);
@@ -112,12 +159,23 @@ export default function WebhooksPage({ client }: WebhooksPageProps) {
     }
   };
 
+  const copyPayload = async (delivery: WebhookDelivery) => {
+    try {
+      await navigator.clipboard.writeText(formatPayload(delivery.payload));
+      setNotice('Payload copied');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to copy payload');
+    }
+  };
+
   const toggleDeliveries = async (id: string) => {
     if (expandedId === id) {
       setExpandedId(null);
+      setExpandedDeliveryId(null);
       return;
     }
     setExpandedId(id);
+    setExpandedDeliveryId(null);
     if (!deliveries[id]) await loadDeliveries(id);
   };
 
@@ -245,7 +303,9 @@ export default function WebhooksPage({ client }: WebhooksPageProps) {
       ) : (
         <div className="space-y-3">
           {webhooks.map((wh) => {
-            const events = typeof wh.events === 'string' ? JSON.parse(wh.events) : wh.events;
+            const events = parseWebhookEvents(wh.events);
+            const webhookDeliveries = deliveries[wh.id] || [];
+            const deliverySummary = summarizeDeliveries(webhookDeliveries);
             return (
               <Card key={wh.id} hover>
                 <div className="flex items-start justify-between mb-3">
@@ -322,46 +382,109 @@ export default function WebhooksPage({ client }: WebhooksPageProps) {
                         Refresh
                       </button>
                     </div>
+
+                    {webhookDeliveries.length > 0 && (
+                      <div className="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                        <div className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2">
+                          <p className="text-[10px] font-medium uppercase tracking-wide text-gray-400">Total</p>
+                          <p className="mt-1 text-sm font-semibold text-gray-900">{deliverySummary.total}</p>
+                        </div>
+                        <div className="rounded-lg border border-emerald-100 bg-emerald-50 px-3 py-2">
+                          <p className="text-[10px] font-medium uppercase tracking-wide text-emerald-600">Delivered</p>
+                          <p className="mt-1 text-sm font-semibold text-emerald-700">{deliverySummary.delivered}</p>
+                        </div>
+                        <div className="rounded-lg border border-red-100 bg-red-50 px-3 py-2">
+                          <p className="text-[10px] font-medium uppercase tracking-wide text-red-600">Failed</p>
+                          <p className="mt-1 text-sm font-semibold text-red-700">{deliverySummary.failed}</p>
+                        </div>
+                        <div className="rounded-lg border border-sky-100 bg-sky-50 px-3 py-2">
+                          <p className="text-[10px] font-medium uppercase tracking-wide text-sky-600">Attempts</p>
+                          <p className="mt-1 text-sm font-semibold text-sky-700">{deliverySummary.attempts}</p>
+                        </div>
+                      </div>
+                    )}
+
                     {loadingDeliveriesId === wh.id && !deliveries[wh.id] ? (
                       <p className="py-4 text-sm text-gray-400">Loading delivery logs...</p>
-                    ) : deliveries[wh.id]?.length ? (
+                    ) : webhookDeliveries.length ? (
                       <div className="divide-y divide-gray-100 rounded-lg border border-gray-100">
-                        {deliveries[wh.id].map((delivery) => (
-                          <div key={delivery.id} className="grid gap-3 px-3 py-3 text-sm sm:grid-cols-[1fr_auto]">
-                            <div className="min-w-0">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <Badge size="sm" variant={delivery.success ? 'success' : 'danger'}>
-                                  {delivery.success ? 'Delivered' : 'Failed'}
-                                </Badge>
-                                <span className="font-medium text-gray-800">{delivery.event}</span>
-                                <span className="text-xs text-gray-400">HTTP {delivery.status}</span>
-                              </div>
-                              <p className="mt-1 truncate font-mono text-xs text-gray-400">{delivery.id}</p>
-                              {delivery.error && (
-                                <p className="mt-1 text-xs text-red-600">{delivery.error}</p>
-                              )}
-                            </div>
-                            <div className="text-left text-xs text-gray-400 sm:text-right">
-                              <p>{delivery.attempts} attempt{delivery.attempts === 1 ? '' : 's'}</p>
-                              <p>{new Date(delivery.deliveredAt).toLocaleString()}</p>
-                              {!delivery.success && (
-                                <button
-                                  onClick={() => handleRetryDelivery(wh.id, delivery.id)}
-                                  disabled={retryingDeliveryId === delivery.id}
-                                  className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-fiber-600 hover:text-fiber-700 disabled:opacity-50"
-                                  title="Retry delivery"
-                                >
-                                  {retryingDeliveryId === delivery.id ? (
-                                    <Loader2 className="h-3 w-3 animate-spin" />
-                                  ) : (
-                                    <RotateCcw className="h-3 w-3" />
+                        {webhookDeliveries.map((delivery) => {
+                          const payloadExpanded = expandedDeliveryId === delivery.id;
+
+                          return (
+                            <div key={delivery.id} className="px-3 py-3 text-sm">
+                              <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+                                <div className="min-w-0">
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <Badge size="sm" variant={delivery.success ? 'success' : 'danger'}>
+                                      {delivery.success ? 'Delivered' : 'Failed'}
+                                    </Badge>
+                                    <span className="font-medium text-gray-800">{delivery.event}</span>
+                                    <span className="text-xs text-gray-400">HTTP {delivery.status}</span>
+                                  </div>
+                                  <p className="mt-1 truncate font-mono text-xs text-gray-400">{delivery.id}</p>
+                                  {delivery.error && (
+                                    <p className="mt-1 rounded bg-red-50 px-2 py-1 text-xs text-red-600">
+                                      {delivery.error}
+                                    </p>
                                   )}
-                                  Retry
-                                </button>
+                                </div>
+                                <div className="text-left text-xs text-gray-400 sm:text-right">
+                                  <p>{delivery.attempts} attempt{delivery.attempts === 1 ? '' : 's'}</p>
+                                  <p>{new Date(delivery.deliveredAt).toLocaleString()}</p>
+                                  <div className="mt-2 flex items-center gap-3 sm:justify-end">
+                                    <button
+                                      onClick={() => setExpandedDeliveryId(payloadExpanded ? null : delivery.id)}
+                                      className="inline-flex items-center gap-1 text-xs font-medium text-gray-500 hover:text-gray-700"
+                                      title={payloadExpanded ? 'Hide payload' : 'View payload'}
+                                    >
+                                      {payloadExpanded ? (
+                                        <EyeOff className="h-3 w-3" />
+                                      ) : (
+                                        <Eye className="h-3 w-3" />
+                                      )}
+                                      Payload
+                                    </button>
+                                    <button
+                                      onClick={() => copyPayload(delivery)}
+                                      className="inline-flex items-center gap-1 text-xs font-medium text-gray-500 hover:text-gray-700"
+                                      title="Copy payload"
+                                    >
+                                      <Clipboard className="h-3 w-3" />
+                                      Copy
+                                    </button>
+                                  </div>
+                                  {!delivery.success && (
+                                    <button
+                                      onClick={() => handleRetryDelivery(wh.id, delivery.id)}
+                                      disabled={retryingDeliveryId === delivery.id}
+                                      className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-fiber-600 hover:text-fiber-700 disabled:opacity-50"
+                                      title="Retry delivery"
+                                    >
+                                      {retryingDeliveryId === delivery.id ? (
+                                        <Loader2 className="h-3 w-3 animate-spin" />
+                                      ) : (
+                                        <RotateCcw className="h-3 w-3" />
+                                      )}
+                                      Retry
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                              {payloadExpanded && (
+                                <div className="mt-3 rounded-lg border border-gray-100 bg-gray-950">
+                                  <div className="flex items-center gap-2 border-b border-gray-800 px-3 py-2 text-xs font-medium text-gray-300">
+                                    <FileJson className="h-3.5 w-3.5" />
+                                    Event payload
+                                  </div>
+                                  <pre className="max-h-72 overflow-auto p-3 text-xs leading-relaxed text-gray-100">
+                                    {formatPayload(delivery.payload)}
+                                  </pre>
+                                </div>
                               )}
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     ) : (
                       <p className="py-4 text-sm text-gray-400">No deliveries recorded yet</p>

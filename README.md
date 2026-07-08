@@ -39,7 +39,7 @@ Fiber Merchant Kit fills that gap with a Stripe-style merchant stack for Fiber N
 |---|---|
 | Create payment requests | REST API and SDK invoice creation |
 | Know when a payment settles | Auto-polling invoice status updates and idempotent state transitions |
-| Fulfill orders automatically | HMAC-signed webhooks with retry and delivery logs |
+| Fulfill orders automatically | HMAC-signed webhooks with retry, delivery logs, and payload inspection |
 | Debug payment operations | Dashboard views for invoices, transactions, balances, webhook logs, and Fiber node status |
 | Integrate quickly | TypeScript SDK and Python SDK |
 | Evaluate without infrastructure | Demo Fiber client mode and demo storefront |
