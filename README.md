@@ -182,7 +182,7 @@ Full reference: [docs/api-reference.md](docs/api-reference.md)
 TypeScript:
 
 ```typescript
-import { MerchantClient } from '@fiber-merchant/sdk';
+import { MerchantClient, verifyWebhookSignature } from '@fiber-merchant/sdk';
 
 const client = new MerchantClient({
   baseUrl: 'http://localhost:3001',
@@ -198,6 +198,9 @@ const invoice = await client.invoices.create({
 const latest = await client.invoices.get(invoice.id);
 const fiberStatus = await client.fiber.getStatus();
 const settlementRun = await client.fiber.runSettlement();
+
+// In your webhook route, verify the raw request body first.
+const valid = await verifyWebhookSignature(rawBody, signatureHeader, 'whsec_YOUR_SECRET');
 ```
 
 Python:

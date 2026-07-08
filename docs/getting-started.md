@@ -112,28 +112,24 @@ Create an endpoint in your app to receive webhook notifications:
 ```typescript
 // Express webhook handler
 import express from 'express';
-import crypto from 'crypto';
+import { verifyWebhookSignature } from '@fiber-merchant/sdk';
 
 const app = express();
 
-app.post('/webhooks/fiber', express.json(), (req, res) => {
+app.post('/webhooks/fiber', express.raw({ type: 'application/json' }), async (req, res) => {
   const signature = req.headers['x-fiber-signature'] as string;
   const event = req.headers['x-fiber-event'] as string;
-  const body = JSON.stringify(req.body);
+  const body = req.body.toString('utf8');
 
-  // Verify signature using your webhook secret
-  const expected = crypto
-    .createHmac('sha256', 'whsec_YOUR_SECRET')
-    .update(body)
-    .digest('hex');
-
-  if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) {
+  if (!(await verifyWebhookSignature(body, signature, 'whsec_YOUR_SECRET'))) {
     return res.status(401).send('Invalid signature');
   }
 
+  const payload = JSON.parse(body);
+
   // Handle the event
   if (event === 'invoice.paid') {
-    console.log(`Payment received: ${req.body.data.id}`);
+    console.log(`Payment received: ${payload.data.id}`);
     // Fulfill the order
   }
 

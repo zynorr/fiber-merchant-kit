@@ -150,7 +150,7 @@ Only paid invoices can be refunded. Initiates a payment back to the original pay
 }
 ```
 
-**Important:** Save the `secret` value. It's shown only once and used to verify webhook signatures.
+**Important:** Save the `secret` value. It's shown only once and used to verify webhook signatures. TypeScript apps can call `verifyWebhookSignature(rawBody, signature, secret)` from `@fiber-merchant/sdk`; pass the exact raw request body bytes/string.
 
 ### List Webhooks
 

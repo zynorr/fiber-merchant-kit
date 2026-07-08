@@ -34,6 +34,11 @@
  */
 
 export { MerchantClient } from './client';
+export {
+  constructWebhookEvent,
+  verifyWebhookSignature,
+  type WebhookPayload,
+} from './webhooks';
 export type {
   Currency,
   MerchantInvoiceStatus,
