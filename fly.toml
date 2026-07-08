@@ -11,6 +11,7 @@ primary_region = 'iad'
 
 [env]
   DISABLE_RATE_LIMIT = 'true'
+  EXPOSE_DEMO_KEY = 'true'
   FIBER_MERCHANT_DB_PATH = '/data/merchant.db'
   FIBER_NODE_RPC_URL = 'demo'
   NODE_ENV = 'development'

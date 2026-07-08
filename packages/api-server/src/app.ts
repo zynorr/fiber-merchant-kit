@@ -83,6 +83,7 @@ function getDiscoveryPayload() {
       'GET /',
       'GET /api/v1',
       'GET /api/v1/health',
+      'GET /api/v1/demo-store/demo-key',
       'POST /api/v1/demo-store/checkout',
       'GET /api/v1/demo-store/invoices/:id',
     ],

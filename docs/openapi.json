@@ -107,6 +107,29 @@
         }
       }
     },
+    "/api/v1/demo-store/demo-key": {
+      "get": {
+        "tags": ["Demo Store"],
+        "summary": "Get hosted demo dashboard key",
+        "operationId": "getDemoStoreDemoKey",
+        "description": "Hosted demo mode only. Returns the temporary demo merchant API key for judge dashboard review. Disabled unless EXPOSE_DEMO_KEY=true, NODE_ENV is not production, and no live Fiber RPC URL is configured.",
+        "responses": {
+          "200": {
+            "description": "Temporary demo merchant key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DemoStoreDemoKeyResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
     "/api/v1/demo-store/checkout": {
       "post": {
         "tags": ["Demo Store"],
@@ -1551,6 +1574,23 @@
           "reason": {
             "type": "string",
             "maxLength": 500
+          }
+        }
+      },
+      "DemoStoreDemoKeyResponse": {
+        "type": "object",
+        "required": ["apiKey", "mode", "warning"],
+        "properties": {
+          "apiKey": {
+            "type": "string",
+            "example": "fm_sk_demo_..."
+          },
+          "mode": {
+            "type": "string",
+            "enum": ["demo"]
+          },
+          "warning": {
+            "type": "string"
           }
         }
       },

@@ -24,6 +24,7 @@ const expectedOperations: Array<[path: string, method: keyof PathItem, operation
   ['/', 'get', 'getServerIndex'],
   ['/api/v1', 'get', 'getApiDiscovery'],
   ['/api/v1/health', 'get', 'getHealth'],
+  ['/api/v1/demo-store/demo-key', 'get', 'getDemoStoreDemoKey'],
   ['/api/v1/demo-store/checkout', 'post', 'createDemoStoreCheckout'],
   ['/api/v1/demo-store/invoices/{id}', 'get', 'getDemoStoreInvoice'],
   ['/api/v1/demo-store/invoices/{id}/simulate-payment', 'post', 'simulateDemoStorePayment'],

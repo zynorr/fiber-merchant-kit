@@ -10,7 +10,7 @@ Fiber Merchant Kit is a Stripe-style merchant layer for the Fiber Network. It le
 | What problem does it solve? | Fiber has fast payment channels, but merchants still need familiar checkout, invoice lifecycle, fulfillment, and operational tooling |
 | Who is it for? | Developers building stores, SaaS billing, games, marketplaces, wallets, and apps that want to accept Fiber payments |
 | What can judges run quickly? | `npm install && npm run dev` starts the API, merchant dashboard, and keyless demo store |
-| What can judges open when hosted? | The Docker/Railway image serves the API, dashboard at `/dashboard`, and FiberStore at `/store` from one URL |
+| What can judges open when hosted? | [fiber-merchant-kit-zynorr.fly.dev](https://fiber-merchant-kit-zynorr.fly.dev) serves the API, dashboard at `/dashboard`, and FiberStore at `/store` from one URL |
 | What proves live-network readiness? | [docs/testnet-smoke.md](docs/testnet-smoke.md) records real FNN testnet smoke checks plus funded settlement evidence |
 
 ## Judge Fast Path
@@ -22,6 +22,7 @@ Fiber Merchant Kit is a Stripe-style merchant layer for the Fiber Network. It le
 | 8 minutes | Run `npm install && npm run dev` | API on `3001`, dashboard on `5173`, demo store on `5174` |
 | 12 minutes | Complete demo-store checkout | A shopper-safe checkout that does not ask for a merchant API key |
 | 15 minutes | Inspect dashboard invoices, webhooks, network, and stats | Merchant operations around invoice lifecycle and fulfillment |
+| Hosted | Open [the Fly demo](https://fiber-merchant-kit-zynorr.fly.dev) | One public URL with `/dashboard` and `/store`; the hosted dashboard can use the built-in demo key helper |
 | Optional | Run [docs/testnet-smoke.md](docs/testnet-smoke.md) | Real FNN RPC readiness and recorded funded Fiber testnet settlement |
 
 ## The Problem It Solves
@@ -135,7 +136,7 @@ The root dev command starts all judge-facing services:
 | Admin Dashboard | http://localhost:5173 | Merchant operations UI |
 | Demo Store | http://localhost:5174 | Keyless shopper checkout demo |
 
-In a Docker or Railway deployment, the same API process also serves the built UIs at `/dashboard` and `/store`, so judges can review the full demo from one public origin.
+In a Docker or Fly deployment, the same API process also serves the built UIs at `/dashboard` and `/store`, so judges can review the full demo from one public origin. The current hosted judge demo is [https://fiber-merchant-kit-zynorr.fly.dev](https://fiber-merchant-kit-zynorr.fly.dev).
 
 Environment templates are checked in at [.env.example](.env.example) and under each package. The platform scripts copy package templates to `.env` files and load `packages/api-server/.env`; direct `npm run dev` users can export the same variables in their shell.
 
@@ -149,7 +150,7 @@ If one of the default ports is already in use, stop the old local process first 
 | TypeScript/Python SDKs | Yes | They act as a merchant backend integration |
 | Demo Store / FiberStore shopper checkout | No | Checkout calls a public server-side demo route so shoppers never see the merchant key |
 
-When the API server starts, copy the latest printed `Demo Merchant API Key: fm_sk_...` value and paste it into the dashboard. If the dashboard says the key is invalid, the API server was probably restarted and minted a new demo key; copy the latest one from the server logs.
+When running locally, copy the latest printed `Demo Merchant API Key: fm_sk_...` value from the API server logs and paste it into the dashboard. On the hosted Fly judge demo, the dashboard shows a `Use demo key` button because that deployment explicitly sets `EXPOSE_DEMO_KEY=true` while staying in demo mode. If the dashboard says the key is invalid, the API server was probably restarted and minted a new demo key; copy the latest one from the server logs or use the hosted demo helper again.
 
 ## Demo Data
 
@@ -216,6 +217,7 @@ Important endpoints:
 | `GET /` | Public server index for judges and local operators |
 | `GET /api/v1` | Public API discovery metadata |
 | `GET /api/v1/health` | Public health check with Fiber node reachability |
+| `GET /api/v1/demo-store/demo-key` | Hosted demo mode only: temporary dashboard key helper for judges |
 | `POST /api/v1/demo-store/checkout` | Public demo-store checkout that creates server-side invoices without exposing a merchant API key |
 | `GET /api/v1/demo-store/invoices/:id` | Public demo-store invoice polling route |
 | `GET /api/v1/auth/me` | Inspect authenticated merchant role and permissions |

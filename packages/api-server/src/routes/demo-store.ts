@@ -29,9 +29,23 @@ function isDemoStoreCheckoutEnabled(): boolean {
   return process.env.NODE_ENV !== 'production' || process.env.DEMO_STORE_PUBLIC_CHECKOUT === 'true';
 }
 
+function hasLiveFiberRpcUrl(): boolean {
+  const urls = [
+    ...(process.env.FIBER_NODE_RPC_URLS ? process.env.FIBER_NODE_RPC_URLS.split(',') : []),
+    process.env.FIBER_NODE_RPC_URL,
+  ]
+    .map((url) => url?.trim())
+    .filter((url): url is string => Boolean(url));
+
+  return urls.some((url) => url !== 'demo');
+}
+
 function isDemoSimulationEnabled(): boolean {
-  return process.env.NODE_ENV !== 'production'
-    && (!process.env.FIBER_NODE_RPC_URL || process.env.FIBER_NODE_RPC_URL === 'demo');
+  return process.env.NODE_ENV !== 'production' && !hasLiveFiberRpcUrl();
+}
+
+function isDemoKeyExposureEnabled(): boolean {
+  return process.env.EXPOSE_DEMO_KEY === 'true' && isDemoSimulationEnabled();
 }
 
 function getDemoMerchantId(): string {
@@ -61,6 +75,29 @@ function buildOrder(items: z.infer<typeof checkoutSchema>['items']) {
   const totalAmount = orderItems.reduce((sum, item) => sum + item.amount, 0);
   return { items: orderItems, totalAmount };
 }
+
+router.head('/demo-key', (_req, res: Response) => {
+  if (!isDemoKeyExposureEnabled()) {
+    res.status(404).end();
+    return;
+  }
+
+  res.status(204).end();
+});
+
+router.get('/demo-key', (_req, res: Response) => {
+  if (!isDemoKeyExposureEnabled()) {
+    res.status(404).json({ error: 'Not found' });
+    return;
+  }
+
+  const demoMerchant = db.seedDemoMerchant();
+  res.json({
+    apiKey: demoMerchant.apiKey,
+    mode: 'demo',
+    warning: 'Demo dashboard key only. Do not expose real merchant API keys in browsers.',
+  });
+});
 
 router.post('/checkout', async (req, res: Response) => {
   try {

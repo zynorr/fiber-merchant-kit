@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Info, Zap, KeyRound, Shield } from 'lucide-react';
 import { Button } from '../components/ui';
 
@@ -12,15 +12,32 @@ export default function LoginPage({ onLogin, baseUrl, notice }: LoginPageProps) 
   const [key, setKey] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [demoKeyAvailable, setDemoKeyAvailable] = useState(false);
+  const [demoKeyLoading, setDemoKeyLoading] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  useEffect(() => {
+    let active = true;
+
+    fetch(`${baseUrl}/api/v1/demo-store/demo-key`, { method: 'HEAD' })
+      .then((res) => {
+        if (active) setDemoKeyAvailable(res.ok);
+      })
+      .catch(() => {
+        if (active) setDemoKeyAvailable(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [baseUrl]);
+
+  const connectWithKey = async (apiKey: string) => {
     setError('');
-    const normalizedKey = key.trim();
+    const normalizedKey = apiKey.trim();
 
     if (!normalizedKey.startsWith('fm_sk_')) {
       setError('Invalid API key format. Key should start with "fm_sk_"');
-      return;
+      return false;
     }
 
     setLoading(true);
@@ -38,6 +55,37 @@ export default function LoginPage({ onLogin, baseUrl, notice }: LoginPageProps) 
       setError('Cannot connect to server. Make sure the API server is running.');
     } finally {
       setLoading(false);
+    }
+
+    return true;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await connectWithKey(key);
+  };
+
+  const handleDemoKeyLogin = async () => {
+    setError('');
+    setDemoKeyLoading(true);
+
+    try {
+      const res = await fetch(`${baseUrl}/api/v1/demo-store/demo-key`);
+      if (!res.ok) {
+        throw new Error('Demo key helper unavailable');
+      }
+
+      const body = await res.json() as { apiKey?: string };
+      if (!body.apiKey?.startsWith('fm_sk_')) {
+        throw new Error('Demo key response was invalid');
+      }
+
+      setKey(body.apiKey);
+      await connectWithKey(body.apiKey);
+    } catch {
+      setError('Hosted demo key is not available on this server. For local runs, copy the key printed by the API server.');
+    } finally {
+      setDemoKeyLoading(false);
     }
   };
 
@@ -103,6 +151,33 @@ export default function LoginPage({ onLogin, baseUrl, notice }: LoginPageProps) 
               </div>
             )}
 
+            {demoKeyAvailable && (
+              <div className="rounded-lg border border-fiber-100 bg-fiber-50 px-4 py-3">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-fiber-900">
+                      Hosted judge demo
+                    </p>
+                    <p className="mt-1 text-xs leading-5 text-fiber-700">
+                      Use the temporary demo merchant key to inspect invoices, webhooks, stats, and network status.
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    loading={demoKeyLoading}
+                    disabled={loading}
+                    icon={<KeyRound className="h-4 w-4" />}
+                    className="shrink-0 bg-white"
+                    onClick={handleDemoKeyLogin}
+                  >
+                    Use demo key
+                  </Button>
+                </div>
+              </div>
+            )}
+
             <div className="space-y-2">
               <label className="block text-sm font-medium text-gray-700">
                 API Key
@@ -131,7 +206,7 @@ export default function LoginPage({ onLogin, baseUrl, notice }: LoginPageProps) 
               </div>
             )}
 
-            <Button type="submit" loading={loading} className="w-full" size="lg">
+            <Button type="submit" loading={loading} disabled={demoKeyLoading} className="w-full" size="lg">
               {loading ? 'Connecting...' : 'Connect to Dashboard'}
             </Button>
           </form>

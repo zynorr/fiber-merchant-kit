@@ -50,6 +50,7 @@ Returns machine-readable metadata for the running kit.
     "GET /",
     "GET /api/v1",
     "GET /api/v1/health",
+    "GET /api/v1/demo-store/demo-key",
     "POST /api/v1/demo-store/checkout",
     "GET /api/v1/demo-store/invoices/:id"
   ],
@@ -66,6 +67,21 @@ Returns `ok` when the configured Fiber node or demo client responds, and `degrad
 ## Demo Store Checkout
 
 These endpoints are unauthenticated and exist for the bundled FiberStore demo. They create invoices through the server-side demo merchant so shopper browsers never receive a merchant API key.
+
+### Hosted Demo Dashboard Key
+
+`GET /demo-store/demo-key`
+
+Hosted demo mode only. Returns the temporary demo merchant key used by the bundled dashboard's `Use demo key` helper. The endpoint returns `404` unless `EXPOSE_DEMO_KEY=true`, `NODE_ENV` is not `production`, and no live Fiber RPC URL is configured.
+
+**Response:**
+```json
+{
+  "apiKey": "fm_sk_demo_...",
+  "mode": "demo",
+  "warning": "Demo dashboard key only. Do not expose real merchant API keys in browsers."
+}
+```
 
 ### Create Demo Checkout
 

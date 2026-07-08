@@ -28,6 +28,7 @@ The project solves a practical adoption gap. Fiber can move value through fast p
 | 8 minutes | Run `npm install && npm run dev` | API, dashboard, and demo store working together |
 | 12 minutes | Complete checkout in the demo store | Shopper path creates and completes an invoice without a merchant API key |
 | 15 minutes | Inspect dashboard webhooks and network pages | Operational workflow for fulfillment and Fiber status |
+| Hosted | Open [https://fiber-merchant-kit-zynorr.fly.dev](https://fiber-merchant-kit-zynorr.fly.dev) | One public origin with `/dashboard`, `/store`, and a hosted demo key helper for the dashboard |
 | 20 minutes | Inspect core implementation | `packages/api-server/src/routes/invoices.ts`, `packages/api-server/src/services/invoice-settlement.ts`, `packages/api-server/src/services/webhook-delivery.ts` |
 | Optional | Read/run [docs/testnet-smoke.md](docs/testnet-smoke.md) | Real FNN testnet RPC readiness and funded live settlement record |
 | Production | Open [docs/deployment.md](docs/deployment.md) | Docker, failover, PostgreSQL schema, and production env path |
@@ -73,13 +74,13 @@ Services:
 | Admin Dashboard | http://localhost:5173 | Paste API key and inspect merchant workflows |
 | Demo Store | http://localhost:5174 | Add items and run checkout without a shopper-facing API key |
 
-Hosted/Docker review uses one public origin: the API root links to `/dashboard` for merchant operations and `/store` for FiberStore checkout.
+Hosted/Docker review uses one public origin: the API root links to `/dashboard` for merchant operations and `/store` for FiberStore checkout. The current hosted judge demo is [https://fiber-merchant-kit-zynorr.fly.dev](https://fiber-merchant-kit-zynorr.fly.dev).
 
 Demo mode does not require a real Fiber node. It is the fastest way to judge the merchant workflow end to end.
 
 ### API Key Rule
 
-- Dashboard: paste the latest `Demo Merchant API Key: fm_sk_...` printed by the API server.
+- Dashboard: paste the latest `Demo Merchant API Key: fm_sk_...` printed by the API server. On the hosted Fly judge demo, click `Use demo key`.
 - Demo Store / FiberStore shopper path: no API key is required. Checkout is server-side so the merchant key never reaches the browser.
 - SDK examples: use the `fm_sk_...` key from your merchant backend code, not from a shopper frontend.
 

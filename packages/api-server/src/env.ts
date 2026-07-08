@@ -109,6 +109,15 @@ const envSchema = z.object({
   // Rate Limiting
   DISABLE_RATE_LIMIT: z.string().optional(),
 
+  // Judge/demo helpers
+  EXPOSE_DEMO_KEY: z
+    .string()
+    .optional()
+    .refine(
+      (v) => v === undefined || ['true', 'false'].includes(v.toLowerCase()),
+      'EXPOSE_DEMO_KEY must be "true" or "false"',
+    ),
+
   RATE_LIMIT_WINDOW_MS: z
     .string()
     .optional()

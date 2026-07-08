@@ -325,6 +325,39 @@ describe('API Routes', () => {
     };
 
     describe('Demo store public checkout', () => {
+      it('exposes the demo dashboard key only when the hosted demo helper is enabled', async () => {
+        vi.stubEnv('EXPOSE_DEMO_KEY', 'true');
+
+        const availability = await request(app).head('/api/v1/demo-store/demo-key');
+        expect(availability.status).toBe(204);
+
+        const res = await request(app).get('/api/v1/demo-store/demo-key');
+
+        expect(res.status).toBe(200);
+        expect(res.body).toMatchObject({
+          apiKey: API_KEY,
+          mode: 'demo',
+        });
+        expect(mockDb.findMerchantByApiKey).not.toHaveBeenCalled();
+      });
+
+      it('hides the demo dashboard key unless exposure is explicitly enabled', async () => {
+        const res = await request(app).get('/api/v1/demo-store/demo-key');
+
+        expect(res.status).toBe(404);
+        expect(mockDb.seedDemoMerchant).not.toHaveBeenCalled();
+      });
+
+      it('hides the demo dashboard key when a live Fiber RPC URL is configured', async () => {
+        vi.stubEnv('EXPOSE_DEMO_KEY', 'true');
+        vi.stubEnv('FIBER_NODE_RPC_URLS', 'http://localhost:8227');
+
+        const res = await request(app).get('/api/v1/demo-store/demo-key');
+
+        expect(res.status).toBe(404);
+        expect(mockDb.seedDemoMerchant).not.toHaveBeenCalled();
+      });
+
       it('creates a demo checkout invoice without exposing a merchant API key', async () => {
         mockFiberClient.createInvoice.mockResolvedValue({
           paymentHash: '0xabc123',

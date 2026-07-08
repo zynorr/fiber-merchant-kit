@@ -35,13 +35,14 @@ NODE_ENV=development
 FIBER_NODE_RPC_URL=demo
 DISABLE_RATE_LIMIT=true
 FIBER_MERCHANT_DB_PATH=/data/merchant.db
+EXPOSE_DEMO_KEY=true
 ```
 
 After Railway exposes the service URL:
 
 1. Open the root URL and confirm `/api/v1/health` returns `status: ok`.
 2. Open `/store`, add an item, create a checkout invoice, and use the demo payment action.
-3. Copy the `Demo Merchant API Key: fm_sk_...` value from Railway logs, open `/dashboard`, and inspect invoices, transactions, stats, webhooks, and Fiber status.
+3. Open `/dashboard` and click `Use demo key`, or copy the `Demo Merchant API Key: fm_sk_...` value from Railway logs. Inspect invoices, transactions, stats, webhooks, and Fiber status.
 
 For a live FNN testnet Railway deploy, switch to `NODE_ENV=production`, set `FIBER_NODE_RPC_URL` or `FIBER_NODE_RPC_URLS`, and remove demo-only payment simulation expectations.
 
@@ -75,9 +76,10 @@ NODE_ENV=development
 FIBER_NODE_RPC_URL=demo
 DISABLE_RATE_LIMIT=true
 FIBER_MERCHANT_DB_PATH=/data/merchant.db
+EXPOSE_DEMO_KEY=true
 ```
 
-For the current hosted smoke evidence, see [demo-evidence.md](demo-evidence.md). The dashboard still requires the demo `fm_sk_...` key printed in Fly logs because it represents the merchant back office; the FiberStore shopper path does not require a key.
+For the current hosted smoke evidence, see [demo-evidence.md](demo-evidence.md). The dashboard represents the merchant back office, so normal deployments still use a merchant `fm_sk_...` key. The hosted judge demo explicitly enables `EXPOSE_DEMO_KEY=true`, which shows a dashboard `Use demo key` helper only while the API is in demo mode with no live Fiber RPC URL configured. The FiberStore shopper path never requires a merchant key.
 
 ## Hosted Live Testnet Topology
 
@@ -147,5 +149,6 @@ docker compose --profile postgres up postgres
 - Use HTTPS in front of the API.
 - Restrict `CORS_ORIGIN` to the dashboard and store origins.
 - Store `.env.production` in your secret manager, not in Git.
+- Keep `EXPOSE_DEMO_KEY=false` outside explicit judge/demo deployments.
 - Keep the webhook delivery worker enabled.
 - Use `FIBER_NODE_RPC_URLS` for failover when more than one Fiber node is available.
