@@ -125,6 +125,7 @@ In demo mode, the store exposes a payment simulation action so judges can comple
 | Area | Why It Matters |
 |---|---|
 | Merchant-scoped queries | Prevents one API key from reading another merchant's invoices/webhooks |
+| Idempotency keys | Duplicate checkout submissions replay the first invoice instead of creating double payment requests |
 | Idempotent payment transition | Repeated invoice polling does not create duplicate successful transactions |
 | Webhook delivery shape | API returns clean camelCase delivery logs instead of raw DB rows |
 | Retry semantics | Non-2xx responses and network errors are both retried |

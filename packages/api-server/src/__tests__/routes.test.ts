@@ -17,6 +17,9 @@ const mockDb = vi.hoisted(() => ({
   getInvoice: vi.fn(),
   listInvoices: vi.fn(),
   updateInvoiceStatus: vi.fn(),
+  beginIdempotencyRequest: vi.fn(),
+  completeIdempotencyRequest: vi.fn(),
+  deleteIdempotencyRequest: vi.fn(),
   createTransaction: vi.fn(),
   upsertIncomingPaymentTransaction: vi.fn(),
   createWebhook: vi.fn(),
@@ -236,6 +239,126 @@ describe('API Routes', () => {
         expect(mockFiberClient.createInvoice).toHaveBeenCalled();
         expect(mockDb.createInvoice).toHaveBeenCalled();
         expect(mockDb.createTransaction).toHaveBeenCalled();
+      });
+
+      it('stores the idempotency result when an Idempotency-Key is provided', async () => {
+        mockFiberClient.createInvoice.mockResolvedValue({
+          paymentHash: '0xabc123',
+          preimage: 'preimage_val',
+          invoiceAddress: 'fibt1created...',
+        });
+        mockDb.beginIdempotencyRequest.mockReturnValue({
+          created: true,
+          record: {
+            id: 'idem-1',
+            merchant_id: 'merchant-1',
+            idempotency_key: 'order-123',
+            request_hash: 'pending',
+            method: 'POST',
+            route: '/api/v1/invoices',
+            resource_type: null,
+            resource_id: null,
+            status_code: null,
+            created_at: '2026-07-04T00:00:00Z',
+            updated_at: '2026-07-04T00:00:00Z',
+          },
+        });
+        mockDb.getInvoice.mockReturnValue(mockInvoice);
+
+        const res = await request(app)
+          .post('/api/v1/invoices')
+          .set('Authorization', `Bearer ${API_KEY}`)
+          .set('Idempotency-Key', 'order-123')
+          .send({ amount: '5000', currency: 'CKB', description: 'Test order' });
+
+        const createdInvoice = mockDb.createInvoice.mock.calls[0][0];
+        expect(res.status).toBe(201);
+        expect(mockDb.beginIdempotencyRequest).toHaveBeenCalledWith(expect.objectContaining({
+          merchantId: 'merchant-1',
+          key: 'order-123',
+          method: 'POST',
+          route: '/api/v1/invoices',
+        }));
+        expect(mockDb.completeIdempotencyRequest).toHaveBeenCalledWith('idem-1', {
+          resourceType: 'invoice',
+          resourceId: createdInvoice.id,
+          statusCode: 201,
+        });
+      });
+
+      it('replays an existing idempotent invoice without creating a second Fiber invoice', async () => {
+        mockDb.beginIdempotencyRequest.mockImplementation((data) => ({
+          created: false,
+          record: {
+            id: 'idem-1',
+            merchant_id: 'merchant-1',
+            idempotency_key: 'order-123',
+            request_hash: data.requestHash,
+            method: 'POST',
+            route: '/api/v1/invoices',
+            resource_type: 'invoice',
+            resource_id: 'inv-123',
+            status_code: 201,
+            created_at: '2026-07-04T00:00:00Z',
+            updated_at: '2026-07-04T00:00:00Z',
+          },
+        }));
+        mockDb.getInvoice.mockReturnValue(mockInvoice);
+
+        const res = await request(app)
+          .post('/api/v1/invoices')
+          .set('Authorization', `Bearer ${API_KEY}`)
+          .set('Idempotency-Key', 'order-123')
+          .send({ amount: '5000', currency: 'CKB', description: 'Test order' });
+
+        expect(res.status).toBe(201);
+        expect(res.headers['idempotency-replayed']).toBe('true');
+        expect(res.body.id).toBe('inv-123');
+        expect(mockFiberClient.createInvoice).not.toHaveBeenCalled();
+        expect(mockDb.createInvoice).not.toHaveBeenCalled();
+        expect(mockDb.createTransaction).not.toHaveBeenCalled();
+      });
+
+      it('returns 409 when an Idempotency-Key is reused with a different body', async () => {
+        mockDb.beginIdempotencyRequest.mockReturnValue({
+          created: false,
+          record: {
+            id: 'idem-1',
+            merchant_id: 'merchant-1',
+            idempotency_key: 'order-123',
+            request_hash: 'different-request-hash',
+            method: 'POST',
+            route: '/api/v1/invoices',
+            resource_type: 'invoice',
+            resource_id: 'inv-123',
+            status_code: 201,
+            created_at: '2026-07-04T00:00:00Z',
+            updated_at: '2026-07-04T00:00:00Z',
+          },
+        });
+
+        const res = await request(app)
+          .post('/api/v1/invoices')
+          .set('Authorization', `Bearer ${API_KEY}`)
+          .set('Idempotency-Key', 'order-123')
+          .send({ amount: '6000', currency: 'CKB', description: 'Changed order' });
+
+        expect(res.status).toBe(409);
+        expect(res.body.error).toMatch(/different create-invoice request/i);
+        expect(mockFiberClient.createInvoice).not.toHaveBeenCalled();
+      });
+
+      it('returns 400 for an invalid Idempotency-Key header', async () => {
+        const res = await request(app)
+          .post('/api/v1/invoices')
+          .set('Authorization', `Bearer ${API_KEY}`)
+          .set('Idempotency-Key', 'bad key')
+          .send({ amount: '5000', currency: 'CKB' });
+
+        expect(res.status).toBe(400);
+        expect(res.body.error).toMatch(/Idempotency-Key/i);
+        expect(mockDb.beginIdempotencyRequest).not.toHaveBeenCalled();
+        expect(mockFiberClient.createInvoice).not.toHaveBeenCalled();
       });
 
       it('returns 400 for invalid request body', async () => {

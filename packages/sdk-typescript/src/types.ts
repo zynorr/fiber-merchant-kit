@@ -57,6 +57,12 @@ export interface CreateInvoiceRequest {
   };
 }
 
+/** Per-request options for invoice creation */
+export interface CreateInvoiceOptions {
+  /** Prevent duplicate checkout submissions from creating multiple invoices */
+  idempotencyKey?: string;
+}
+
 /** Invoice object in merchant system */
 export interface Invoice {
   id: string;

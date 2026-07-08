@@ -125,6 +125,20 @@ describe('MerchantClient', () => {
           }),
         });
       });
+
+      it('should send Idempotency-Key when provided', async () => {
+        mockFetch.mockResolvedValue(mockInvoice);
+        await client.invoices.create(
+          { amount: '5000', currency: 'CKB' },
+          { idempotencyKey: 'order-123' },
+        );
+
+        expect(mockFetch).toHaveBeenCalledWith('/invoices', {
+          method: 'POST',
+          body: { amount: '5000', currency: 'CKB' },
+          headers: { 'Idempotency-Key': 'order-123' },
+        });
+      });
     });
 
     describe('get', () => {

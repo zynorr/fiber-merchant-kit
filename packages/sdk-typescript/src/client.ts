@@ -31,6 +31,7 @@ import type {
   MerchantClientOptions,
   Invoice,
   CreateInvoiceRequest,
+  CreateInvoiceOptions,
   WebhookEndpoint,
   RegisterWebhookRequest,
   WebhookDelivery,
@@ -87,10 +88,15 @@ class InvoiceResource {
   constructor(private fetch: $Fetch) {}
 
   /** Create a new invoice for receiving a payment */
-  async create(data: CreateInvoiceRequest): Promise<Invoice> {
+  async create(data: CreateInvoiceRequest, options: CreateInvoiceOptions = {}): Promise<Invoice> {
+    const headers = options.idempotencyKey
+      ? { 'Idempotency-Key': options.idempotencyKey }
+      : undefined;
+
     return this.fetch('/invoices', {
       method: 'POST',
       body: data,
+      ...(headers ? { headers } : {}),
     });
   }
 

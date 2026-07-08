@@ -195,7 +195,8 @@ class _InvoiceResource:
                expiry: Optional[int] = None,
                webhook_url: Optional[str] = None,
                allow_mpp: Optional[bool] = None,
-               udt_type_script: Optional[dict] = None) -> Invoice:
+               udt_type_script: Optional[dict] = None,
+               idempotency_key: Optional[str] = None) -> Invoice:
         body = {"amount": amount, "currency": currency}
         if description:
             body["description"] = description
@@ -209,7 +210,11 @@ class _InvoiceResource:
             body["allowMpp"] = allow_mpp
         if udt_type_script:
             body["udtTypeScript"] = udt_type_script
-        resp = self._client.post("/invoices", json=body)
+        headers = {"Idempotency-Key": idempotency_key} if idempotency_key else None
+        if headers:
+            resp = self._client.post("/invoices", json=body, headers=headers)
+        else:
+            resp = self._client.post("/invoices", json=body)
         resp.raise_for_status()
         return Invoice.from_dict(resp.json())
 

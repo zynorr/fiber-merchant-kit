@@ -51,6 +51,8 @@ Returns `ok` when the configured Fiber node or demo client responds, and `degrad
 
 Creates a new payment invoice. Returns the invoice details including a Bech32m-encoded invoice address that can be rendered as a QR code.
 
+Optional header: `Idempotency-Key: order-123`. Reusing the same key with the same request body replays the original invoice and sets `Idempotency-Replayed: true`; reusing the key with a different body returns `409`.
+
 **Request:**
 ```json
 {

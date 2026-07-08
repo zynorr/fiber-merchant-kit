@@ -7,6 +7,7 @@
  * - webhooks: Registered webhook endpoints
  * - webhook_deliveries: Webhook delivery logs
  * - transactions: Payment transaction history
+ * - idempotency_keys: Replay protection for duplicate mutation requests
  */
 
 export const SCHEMA_SQL = `
@@ -86,10 +87,28 @@ export const SCHEMA_SQL = `
     FOREIGN KEY (invoice_id) REFERENCES invoices(id)
   );
 
+  -- Idempotency records for mutation endpoints
+  CREATE TABLE IF NOT EXISTS idempotency_keys (
+    id TEXT PRIMARY KEY,
+    merchant_id TEXT NOT NULL,
+    idempotency_key TEXT NOT NULL,
+    request_hash TEXT NOT NULL,
+    method TEXT NOT NULL,
+    route TEXT NOT NULL,
+    resource_type TEXT,
+    resource_id TEXT,
+    status_code INTEGER,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now')),
+    UNIQUE (merchant_id, idempotency_key, method, route),
+    FOREIGN KEY (merchant_id) REFERENCES merchants(id)
+  );
+
   -- Indexes
   CREATE INDEX IF NOT EXISTS idx_invoices_status ON invoices(status);
   CREATE INDEX IF NOT EXISTS idx_invoices_created ON invoices(created_at);
   CREATE INDEX IF NOT EXISTS idx_transactions_created ON transactions(created_at);
   CREATE INDEX IF NOT EXISTS idx_webhook_deliveries_webhook ON webhook_deliveries(webhook_id);
   CREATE INDEX IF NOT EXISTS idx_invoices_merchant ON invoices(merchant_id);
+  CREATE INDEX IF NOT EXISTS idx_idempotency_lookup ON idempotency_keys(merchant_id, idempotency_key, method, route);
 `;

@@ -15,6 +15,7 @@ import type {
   DbWebhook,
   DbWebhookDelivery,
   DbTransaction,
+  DbIdempotencyKey,
   PaginatedResult,
   MerchantStats,
   RevenueRow,
@@ -91,6 +92,67 @@ export function createMerchant(label?: string): DbMerchant {
   const apiKey = `fm_sk_${Buffer.from(crypto.randomBytes(32)).toString('hex')}`;
   d.prepare('INSERT INTO merchants (id, api_key, label) VALUES (?, ?, ?)').run(id, apiKey, label || null);
   return d.prepare('SELECT * FROM merchants WHERE id = ?').get<DbMerchant>(id)!;
+}
+
+// -- Idempotency queries ----------------------------------------------------
+
+export function getIdempotencyRecord(params: {
+  merchantId: string;
+  key: string;
+  method: string;
+  route: string;
+}): DbIdempotencyKey | undefined {
+  return getDb().prepare(`
+    SELECT *
+    FROM idempotency_keys
+    WHERE merchant_id = ? AND idempotency_key = ? AND method = ? AND route = ?
+  `).get<DbIdempotencyKey>(params.merchantId, params.key, params.method, params.route);
+}
+
+export function beginIdempotencyRequest(data: {
+  merchantId: string;
+  key: string;
+  requestHash: string;
+  method: string;
+  route: string;
+}): { record: DbIdempotencyKey; created: boolean } {
+  const d = getDb();
+  const id = crypto.randomUUID();
+  const result = d.prepare(`
+    INSERT OR IGNORE INTO idempotency_keys (id, merchant_id, idempotency_key, request_hash, method, route)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).run(id, data.merchantId, data.key, data.requestHash, data.method, data.route);
+
+  const record = getIdempotencyRecord({
+    merchantId: data.merchantId,
+    key: data.key,
+    method: data.method,
+    route: data.route,
+  });
+  if (!record) {
+    throw new Error('Failed to read idempotency record');
+  }
+
+  return { record, created: result.changes > 0 };
+}
+
+export function completeIdempotencyRequest(
+  id: string,
+  data: {
+    resourceType: string;
+    resourceId: string;
+    statusCode: number;
+  },
+): void {
+  getDb().prepare(`
+    UPDATE idempotency_keys
+    SET resource_type = ?, resource_id = ?, status_code = ?, updated_at = datetime('now')
+    WHERE id = ?
+  `).run(data.resourceType, data.resourceId, data.statusCode, id);
+}
+
+export function deleteIdempotencyRequest(id: string): void {
+  getDb().prepare('DELETE FROM idempotency_keys WHERE id = ? AND resource_id IS NULL').run(id);
 }
 
 // ── Invoice queries ───────────────────────────────────────────

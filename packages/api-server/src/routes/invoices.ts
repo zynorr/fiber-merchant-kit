@@ -24,18 +24,95 @@ import {
 } from '../services/invoice-settlement';
 
 const router = Router();
+const CREATE_INVOICE_IDEMPOTENCY_ROUTE = '/api/v1/invoices';
 
 function isDemoSimulationEnabled(): boolean {
   return process.env.NODE_ENV !== 'production'
     && (!process.env.FIBER_NODE_RPC_URL || process.env.FIBER_NODE_RPC_URL === 'demo');
 }
 
+function stableStringify(value: unknown): string {
+  if (Array.isArray(value)) {
+    return `[${value.map(stableStringify).join(',')}]`;
+  }
+  if (value && typeof value === 'object') {
+    const entries = Object.entries(value as Record<string, unknown>)
+      .filter(([, entryValue]) => entryValue !== undefined)
+      .sort(([left], [right]) => left.localeCompare(right));
+    return `{${entries.map(([key, entryValue]) => `${JSON.stringify(key)}:${stableStringify(entryValue)}`).join(',')}}`;
+  }
+  return JSON.stringify(value);
+}
+
+function hashRequestBody(value: unknown): string {
+  return crypto.createHash('sha256').update(stableStringify(value)).digest('hex');
+}
+
+function readIdempotencyKey(req: AuthenticatedRequest): string | undefined {
+  const value = req.get('Idempotency-Key');
+  if (!value) return undefined;
+  return value.trim();
+}
+
+function validateIdempotencyKey(key: string): string | undefined {
+  if (key.length < 1 || key.length > 255) {
+    return 'Idempotency-Key must be between 1 and 255 characters';
+  }
+  if (!/^[\x21-\x7E]+$/.test(key)) {
+    return 'Idempotency-Key must use printable ASCII characters without spaces';
+  }
+  return undefined;
+}
+
 // ── Create Invoice ────────────────────────────────────────────
 
 router.post('/', async (req: AuthenticatedRequest, res: Response) => {
+  let idempotencyRecordId: string | undefined;
   try {
     const parsed = createInvoiceSchema.parse(req.body);
     const { amount, currency, description, metadata, expiry, webhookUrl, udtTypeScript } = parsed;
+    const requestHash = hashRequestBody(parsed);
+    const idempotencyKey = readIdempotencyKey(req);
+
+    if (idempotencyKey !== undefined) {
+      const keyError = validateIdempotencyKey(idempotencyKey);
+      if (keyError) {
+        res.status(400).json({ error: keyError });
+        return;
+      }
+
+      const idempotency = db.beginIdempotencyRequest({
+        merchantId: req.merchantId!,
+        key: idempotencyKey,
+        requestHash,
+        method: 'POST',
+        route: CREATE_INVOICE_IDEMPOTENCY_ROUTE,
+      });
+
+      if (!idempotency.created) {
+        if (idempotency.record.request_hash !== requestHash) {
+          res.status(409).json({ error: 'Idempotency-Key was already used with a different create-invoice request' });
+          return;
+        }
+
+        if (!idempotency.record.resource_id) {
+          res.status(409).json({ error: 'Idempotency-Key is already processing' });
+          return;
+        }
+
+        const existing = db.getInvoice(idempotency.record.resource_id, req.merchantId);
+        if (!existing) {
+          res.status(409).json({ error: 'Idempotent invoice result is no longer available' });
+          return;
+        }
+
+        res.set('Idempotency-Replayed', 'true');
+        res.status(idempotency.record.status_code || 200).json(toCamelCase(existing));
+        return;
+      }
+
+      idempotencyRecordId = idempotency.record.id;
+    }
 
     const fiber = getFiberClient();
 
@@ -94,8 +171,22 @@ router.post('/', async (req: AuthenticatedRequest, res: Response) => {
 
     // Return invoice to merchant (camelCase)
     const invoice = db.getInvoice(invoiceId, req.merchantId);
+    if (idempotencyRecordId) {
+      db.completeIdempotencyRequest(idempotencyRecordId, {
+        resourceType: 'invoice',
+        resourceId: invoiceId,
+        statusCode: 201,
+      });
+    }
     res.status(201).json(toCamelCase(invoice!));
   } catch (err: unknown) {
+    if (idempotencyRecordId) {
+      try {
+        db.deleteIdempotencyRequest(idempotencyRecordId);
+      } catch {
+        // Keep the original create-invoice error as the response source.
+      }
+    }
     if (err instanceof z.ZodError) {
       res.status(400).json({ error: 'Validation failed', details: err.issues });
       return;

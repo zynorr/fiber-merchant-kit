@@ -109,6 +109,11 @@
             "BearerAuth": []
           }
         ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -130,11 +135,33 @@
               }
             }
           },
+          "200": {
+            "description": "Existing invoice replayed for a matching Idempotency-Key",
+            "headers": {
+              "Idempotency-Replayed": {
+                "description": "Set to true when the response was replayed from a prior create-invoice request.",
+                "schema": {
+                  "type": "string",
+                  "enum": ["true"]
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Invoice"
+                }
+              }
+            }
+          },
           "400": {
             "$ref": "#/components/responses/ValidationError"
           },
           "401": {
             "$ref": "#/components/responses/Unauthorized"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
           }
         }
       },
@@ -984,6 +1011,17 @@
           "type": "string"
         },
         "description": "Opaque pagination cursor returned by the previous page."
+      },
+      "IdempotencyKey": {
+        "name": "Idempotency-Key",
+        "in": "header",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255
+        },
+        "description": "Optional key for safely retrying create-invoice requests without creating duplicate invoices."
       }
     },
     "responses": {
@@ -1019,6 +1057,16 @@
       },
       "NotFound": {
         "description": "Resource not found",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            }
+          }
+        }
+      },
+      "Conflict": {
+        "description": "Request conflicts with an existing idempotency record or resource state",
         "content": {
           "application/json": {
             "schema": {

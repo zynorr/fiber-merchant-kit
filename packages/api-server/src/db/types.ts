@@ -74,6 +74,20 @@ export interface DbTransaction {
   created_at: string;
 }
 
+export interface DbIdempotencyKey {
+  id: string;
+  merchant_id: string;
+  idempotency_key: string;
+  request_hash: string;
+  method: string;
+  route: string;
+  resource_type: string | null;
+  resource_id: string | null;
+  status_code: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
 /** Paginated result wrapper */
 export interface PaginatedResult<T> {
   items: T[];

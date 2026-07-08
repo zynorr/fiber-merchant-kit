@@ -239,6 +239,29 @@ class TestInvoices:
         assert kwargs["json"]["webhookUrl"] == "https://example.com/invoice-hook"
         assert kwargs["json"]["allowMpp"] is True
 
+    def test_create_with_idempotency_key(self, mock_client, mock_response):
+        client, mock_httpx = mock_client
+        mock_httpx.post.return_value = mock_response({
+            "id": "inv-123",
+            "payment_hash": "0xabc",
+            "invoice_address": "fibt1...",
+            "amount": "5000",
+            "currency": "CKB",
+            "status": "pending",
+        })
+
+        client.invoices.create(
+            amount="5000",
+            currency="CKB",
+            idempotency_key="order-123",
+        )
+
+        mock_httpx.post.assert_called_once_with(
+            "/invoices",
+            json={"amount": "5000", "currency": "CKB"},
+            headers={"Idempotency-Key": "order-123"},
+        )
+
     def test_get_returns_invoice(self, mock_client, mock_response):
         client, mock_httpx = mock_client
         mock_httpx.get.return_value = mock_response({

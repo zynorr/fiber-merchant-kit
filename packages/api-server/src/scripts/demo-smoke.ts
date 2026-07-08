@@ -202,19 +202,35 @@ async function main(): Promise<void> {
     assert(webhook.id && webhook.secret, 'webhook registration should return id and secret');
     pass('webhook endpoint registered');
 
+    const invoiceBody = JSON.stringify({
+      amount: '12345',
+      currency: 'CKB',
+      description: 'Demo smoke checkout',
+      metadata: { source: 'demo-smoke' },
+    });
     const invoice = await requestJson<InvoiceResponse>(baseUrl, '/api/v1/invoices', {
       method: 'POST',
-      headers: authHeaders,
-      body: JSON.stringify({
-        amount: '12345',
-        currency: 'CKB',
-        description: 'Demo smoke checkout',
-        metadata: { source: 'demo-smoke' },
-      }),
+      headers: { ...authHeaders, 'Idempotency-Key': 'demo-smoke-checkout' },
+      body: invoiceBody,
     });
     assert(invoice.status === 'pending', 'created invoice should start pending');
     assert(invoice.invoiceAddress, 'created invoice should include payment address');
     pass(`invoice created (${invoice.id})`);
+
+    const replayResponse = await fetch(`${baseUrl}/api/v1/invoices`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...authHeaders,
+        'Idempotency-Key': 'demo-smoke-checkout',
+      },
+      body: invoiceBody,
+    });
+    const replayedInvoice = await replayResponse.json() as InvoiceResponse;
+    assert(replayResponse.ok, 'idempotent invoice replay should be successful');
+    assert(replayResponse.headers.get('Idempotency-Replayed') === 'true', 'replay should set Idempotency-Replayed header');
+    assert(replayedInvoice.id === invoice.id, 'replay should return the original invoice');
+    pass('idempotent invoice replay returned the original invoice');
 
     await waitFor('invoice.created webhook', () =>
       webhookReceiver.received.find((delivery) =>

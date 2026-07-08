@@ -147,6 +147,7 @@ Demo mode works without a real Fiber node. For testnet/production, set `FIBER_NO
 | API server as proxy | Keeps Fiber node credentials off clients and centralizes payment lifecycle logic |
 | sql.js SQLite | Zero-config persistence for hackathon evaluation and simple merchant deployments |
 | Opaque cursor pagination | Stable paging while preserving implementation flexibility |
+| Idempotency keys for invoice creation | Duplicate checkout submits return the original invoice instead of creating a second payment request |
 | Idempotent invoice transitions | Repeated status polling should not duplicate successful transactions |
 | HMAC-signed webhooks | Lets merchants verify events came from their payment server |
 | Retry on non-2xx and network errors | Matches real webhook reliability expectations |
@@ -199,7 +200,7 @@ const invoice = await client.invoices.create({
   amount: '5000',
   currency: 'CKB',
   description: 'Order #1234',
-});
+}, { idempotencyKey: 'order_1234' });
 
 const latest = await client.invoices.get(invoice.id);
 const fiberStatus = await client.fiber.getStatus();

@@ -186,6 +186,7 @@ Why this matters: webhook failures are visible, retried, and replayable. The das
 | `transactions` | Incoming/outgoing payment history connected to invoices |
 | `webhooks` | Registered merchant webhook endpoints and event subscriptions |
 | `webhook_deliveries` | Delivery attempts, HTTP status, success flag, error, payload |
+| `idempotency_keys` | Replay records for duplicate mutation requests such as checkout invoice creation |
 
 ## API Contract Shape
 
@@ -217,6 +218,7 @@ This keeps SQLite simple while giving JS and Python clients a predictable public
 | Decision | Reason |
 |---|---|
 | Idempotent invoice state updates | Polling is repeated by nature; repeated reads must not duplicate writes |
+| Idempotency key conflict detection | Reused checkout keys must match the original request body before replaying an invoice |
 | Promote pending incoming transaction | Keeps one canonical transaction for one invoice payment |
 | Retry webhook non-2xx responses | HTTP 500 is a delivery failure, not a successful attempt |
 | Replay webhook deliveries as new rows | Operators need a clean audit trail when re-sending a failed event |
