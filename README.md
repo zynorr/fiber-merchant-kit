@@ -91,6 +91,7 @@ Full architecture: [docs/architecture.md](docs/architecture.md)
 | [packages/sdk-typescript](packages/sdk-typescript) | Typed TypeScript SDK for merchant apps |
 | [packages/sdk-python](packages/sdk-python) | Python SDK with webhook signature helper |
 | [docs/api-reference.md](docs/api-reference.md) | Endpoint reference and response shapes |
+| [docs/openapi.json](docs/openapi.json) | Machine-readable OpenAPI 3.0 contract for the Merchant API |
 | [docs/getting-started.md](docs/getting-started.md) | Local setup walkthrough |
 | [docs/demo-evidence.md](docs/demo-evidence.md) | Live demo checkout evidence with paid transaction |
 | [docs/testnet-smoke.md](docs/testnet-smoke.md) | Real Fiber testnet smoke path and funded settlement evidence |
@@ -180,7 +181,7 @@ Important endpoints:
 | `GET /api/v1/fiber/status` | Fiber node, channel, and settlement worker status |
 | `POST /api/v1/fiber/settlement/run` | Trigger an immediate open-invoice settlement sweep |
 
-Full reference: [docs/api-reference.md](docs/api-reference.md)
+Full reference: [docs/api-reference.md](docs/api-reference.md). Machine-readable contract: [docs/openapi.json](docs/openapi.json).
 
 ## SDK Examples
 
@@ -266,4 +267,5 @@ Demo mode is intentionally frictionless for judging. For production:
 - [Demo Evidence](docs/demo-evidence.md)
 - [Fiber Testnet Smoke](docs/testnet-smoke.md)
 - [API Reference](docs/api-reference.md)
+- [OpenAPI Contract](docs/openapi.json)
 - [Quick API Sheet](API.md)

@@ -45,6 +45,7 @@ This checks `node_info` and `list_channels` without side effects. Set `FIBER_TES
 ## API Endpoints
 
 All authenticated endpoints require `Authorization: Bearer fm_sk_...` header.
+Full human reference: `../../docs/api-reference.md`. Machine-readable OpenAPI contract: `../../docs/openapi.json`.
 
 ### Invoices
 - `POST /api/v1/invoices` — Create invoice

@@ -15,6 +15,7 @@ Fiber Merchant Kit is merchant payment infrastructure for the Fiber Network: it 
 | 10 minutes | Inspect the API and webhook core | `packages/api-server/src/routes/invoices.ts`, `packages/api-server/src/services/webhook-delivery.ts` |
 | 15 minutes | Run the project | API, dashboard, and demo store working together |
 | 20 minutes | Inspect SDKs and dashboard | Developer integration plus merchant operation workflow |
+| API contract | Open [docs/openapi.json](docs/openapi.json) | OpenAPI 3.0 contract for all public and authenticated endpoints |
 | Evidence | Open [docs/demo-evidence.md](docs/demo-evidence.md) | Paid demo checkout transaction ID and invoice proof |
 | Optional | Read/run [docs/testnet-smoke.md](docs/testnet-smoke.md) | Confirms real Fiber testnet RPC readiness and records a funded live settlement |
 
@@ -113,6 +114,7 @@ In demo mode, the store exposes a payment simulation action so judges can comple
 | Fiber RPC wrapper and demo mode | `packages/api-server/src/services/fiber-client.ts` |
 | Webhook retry/signing/logs/replay | `packages/api-server/src/services/webhook-delivery.ts`, `packages/admin-dashboard/src/pages/WebhooksPage.tsx` |
 | Webhook API and delivery log response | `packages/api-server/src/routes/webhooks.ts` |
+| OpenAPI contract | `docs/openapi.json` |
 | Dashboard workflows | `packages/admin-dashboard/src/pages` |
 | Demo checkout | `packages/demo-store/src/App.tsx` |
 | TypeScript SDK | `packages/sdk-typescript/src/client.ts` |
@@ -183,4 +185,5 @@ The current architecture is intentionally hackathon-friendly and production-shap
 - [Demo Evidence](docs/demo-evidence.md)
 - [Fiber Testnet Smoke](docs/testnet-smoke.md)
 - [API Reference](docs/api-reference.md)
+- [OpenAPI Contract](docs/openapi.json)
 - [Hackathon Submission](hackathon-submission.md)

@@ -61,6 +61,7 @@ function getDiscoveryPayload() {
       'docs/demo-evidence.md',
       'docs/testnet-smoke.md',
       'docs/api-reference.md',
+      'docs/openapi.json',
     ],
   };
 }

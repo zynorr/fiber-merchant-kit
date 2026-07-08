@@ -2,6 +2,7 @@
 
 Base URL: `http://localhost:3001/api/v1`
 Authentication: `Authorization: Bearer fm_sk_...`
+Machine-readable contract: [openapi.json](openapi.json)
 
 ## Public Discovery
 
