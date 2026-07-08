@@ -66,6 +66,7 @@ All authenticated endpoints require `Authorization: Bearer fm_sk_...` header.
 - `GET /api/v1/stats` — Dashboard statistics
 - `GET /api/v1/stats/revenue?days=30` — Revenue history
 - `GET /api/v1/fiber/status` — Fiber node, channel, and settlement worker status
+- `POST /api/v1/fiber/settlement/run` — Trigger an immediate open-invoice settlement sweep
 - `GET /api/v1/health` — Health check
 
 ### Transactions

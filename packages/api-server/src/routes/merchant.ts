@@ -17,6 +17,7 @@ import { getFiberClient } from '../lib/fiber-client';
 import { z } from 'zod';
 import { listTransactionsQuerySchema, revenueQuerySchema } from '../validation';
 import { getFiberNetworkStatus } from '../services/fiber-status';
+import { runSettlementSweep } from '../services/settlement-worker';
 
 const router = Router();
 
@@ -103,6 +104,16 @@ router.get('/balance/total', async (_req: AuthenticatedRequest, res: Response) =
 router.get('/fiber/status', async (_req: AuthenticatedRequest, res: Response) => {
   try {
     res.json(await getFiberNetworkStatus());
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    res.status(500).json({ error: message });
+  }
+});
+
+router.post('/fiber/settlement/run', async (_req: AuthenticatedRequest, res: Response) => {
+  try {
+    const result = await runSettlementSweep('manual');
+    res.status(result.skipped ? 202 : 200).json(result);
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     res.status(500).json({ error: message });

@@ -1,4 +1,4 @@
-import { refreshOpenInvoices } from './invoice-settlement';
+import { refreshOpenInvoices, type OpenInvoiceSettlementSummary } from './invoice-settlement';
 
 const DEFAULT_INTERVAL_MS = 30_000;
 const MIN_INTERVAL_MS = 5_000;
@@ -7,6 +7,22 @@ const MAX_BATCH_SIZE = 100;
 
 let timer: NodeJS.Timeout | undefined;
 let running = false;
+let lastRunAt: string | undefined;
+let lastSuccessAt: string | undefined;
+let lastError: string | undefined;
+let lastSummary: OpenInvoiceSettlementSummary | undefined;
+
+export type SettlementRunTrigger = 'timer' | 'manual';
+
+export interface SettlementRunResult {
+  trigger: SettlementRunTrigger;
+  running: boolean;
+  skipped: boolean;
+  startedAt: string;
+  finishedAt?: string;
+  summary?: OpenInvoiceSettlementSummary;
+  error?: string;
+}
 
 export interface SettlementWorkerConfig {
   enabled: boolean;
@@ -15,6 +31,10 @@ export interface SettlementWorkerConfig {
   mode: 'demo' | 'live';
   intervalMs: number;
   batchSize: number;
+  lastRunAt?: string;
+  lastSuccessAt?: string;
+  lastError?: string;
+  lastSummary?: OpenInvoiceSettlementSummary;
 }
 
 function readPositiveInteger(value: string | undefined, fallback: number): number {
@@ -50,29 +70,75 @@ export function getSettlementWorkerConfig(): SettlementWorkerConfig {
     mode: liveMode ? 'live' : 'demo',
     intervalMs,
     batchSize,
+    lastRunAt,
+    lastSuccessAt,
+    lastError,
+    lastSummary,
   };
 }
 
-async function tick(): Promise<void> {
-  if (running) return;
+export async function runSettlementSweep(
+  trigger: SettlementRunTrigger = 'manual',
+): Promise<SettlementRunResult> {
+  const startedAt = new Date().toISOString();
+  if (running) {
+    return {
+      trigger,
+      running: true,
+      skipped: true,
+      startedAt,
+      error: 'Settlement sweep already running',
+    };
+  }
+
   running = true;
+  lastRunAt = startedAt;
 
   try {
     const config = getSettlementWorkerConfig();
     const summary = await refreshOpenInvoices({ limit: config.batchSize });
-    const changed = summary.paid + summary.received + summary.expired;
+    const finishedAt = new Date().toISOString();
+    lastSummary = summary;
+    lastSuccessAt = finishedAt;
+    lastError = undefined;
 
-    if (summary.checked > 0 && (changed > 0 || summary.errors > 0)) {
-      console.log(
-        `[SettlementWorker] checked=${summary.checked} paid=${summary.paid} received=${summary.received} ` +
-        `expired=${summary.expired} errors=${summary.errors}`,
-      );
-    }
+    return {
+      trigger,
+      running: false,
+      skipped: false,
+      startedAt,
+      finishedAt,
+      summary,
+    };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
+    const finishedAt = new Date().toISOString();
+    lastError = message;
     console.error('[SettlementWorker] Tick failed:', message);
+    return {
+      trigger,
+      running: false,
+      skipped: false,
+      startedAt,
+      finishedAt,
+      error: message,
+    };
   } finally {
     running = false;
+  }
+}
+
+async function tick(): Promise<void> {
+  const result = await runSettlementSweep('timer');
+  const summary = result.summary;
+  if (!summary) return;
+
+  const changed = summary.paid + summary.received + summary.expired;
+  if (summary.checked > 0 && (changed > 0 || summary.errors > 0)) {
+    console.log(
+      `[SettlementWorker] checked=${summary.checked} paid=${summary.paid} received=${summary.received} ` +
+      `expired=${summary.expired} errors=${summary.errors}`,
+    );
   }
 }
 

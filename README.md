@@ -173,6 +173,7 @@ Important endpoints:
 | `GET /api/v1/transactions` | List payment history |
 | `GET /api/v1/stats` | Dashboard metrics |
 | `GET /api/v1/fiber/status` | Fiber node, channel, and settlement worker status |
+| `POST /api/v1/fiber/settlement/run` | Trigger an immediate open-invoice settlement sweep |
 
 Full reference: [docs/api-reference.md](docs/api-reference.md)
 
@@ -196,6 +197,7 @@ const invoice = await client.invoices.create({
 
 const latest = await client.invoices.get(invoice.id);
 const fiberStatus = await client.fiber.getStatus();
+const settlementRun = await client.fiber.runSettlement();
 ```
 
 Python:

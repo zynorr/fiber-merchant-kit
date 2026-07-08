@@ -422,6 +422,28 @@ describe('MerchantClient', () => {
       expect(result.reachable).toBe(true);
       expect(result.worker.enabled).toBe(true);
     });
+
+    it('should POST /fiber/settlement/run', async () => {
+      const mockRun = {
+        trigger: 'manual',
+        running: false,
+        skipped: false,
+        startedAt: '2026-07-08T12:00:00Z',
+        finishedAt: '2026-07-08T12:00:01Z',
+        summary: {
+          checked: 2,
+          paid: 1,
+          received: 0,
+          expired: 0,
+          unchanged: 1,
+          errors: 0,
+        },
+      };
+      mockFetch.mockResolvedValue(mockRun);
+      const result = await client.fiber.runSettlement();
+      expect(mockFetch).toHaveBeenCalledWith('/fiber/settlement/run', { method: 'POST' });
+      expect(result.summary?.paid).toBe(1);
+    });
   });
 
   describe('stats', () => {

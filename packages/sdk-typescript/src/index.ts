@@ -48,6 +48,8 @@ export type {
   Transaction,
   ChannelBalance,
   SettlementWorkerStatus,
+  OpenInvoiceSettlementSummary,
+  SettlementRunResult,
   FiberNodeStatus,
   FiberChannelSummary,
   FiberStatus,

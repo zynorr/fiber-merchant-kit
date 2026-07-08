@@ -91,10 +91,11 @@ The same evidence file also includes a funded live testnet settlement completed 
 3. Create an invoice.
 4. Open invoice detail and watch status update through polling.
 5. Open the Network page and inspect Fiber node, channel, and settlement worker status.
-6. Register a webhook endpoint.
-7. Send a webhook test event, inspect delivery logs, and retry a failed delivery if one is present.
-8. Open the demo store and complete a checkout flow.
-9. Return to dashboard and inspect invoices, transactions, and balances.
+6. Click Run Settlement and confirm the activity summary updates.
+7. Register a webhook endpoint.
+8. Send a webhook test event, inspect delivery logs, and retry a failed delivery if one is present.
+9. Open the demo store and complete a checkout flow.
+10. Return to dashboard and inspect invoices, transactions, and balances.
 
 In demo mode, the store exposes a payment simulation action so judges can complete the checkout deterministically without running a real Fiber wallet.
 

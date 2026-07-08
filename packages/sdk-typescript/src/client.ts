@@ -39,6 +39,7 @@ import type {
   Transaction,
   ChannelBalance,
   FiberStatus,
+  SettlementRunResult,
   MerchantStats,
   ApiKey,
   PaginatedResponse,
@@ -215,6 +216,11 @@ class FiberResource {
   /** Get live/demo Fiber node, channel, and settlement worker status */
   async getStatus(): Promise<FiberStatus> {
     return this.fetch('/fiber/status');
+  }
+
+  /** Trigger an immediate open-invoice settlement sweep */
+  async runSettlement(): Promise<SettlementRunResult> {
+    return this.fetch('/fiber/settlement/run', { method: 'POST' });
   }
 }
 

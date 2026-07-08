@@ -156,6 +156,31 @@ export interface SettlementWorkerStatus {
   mode: 'demo' | 'live';
   intervalMs: number;
   batchSize: number;
+  lastRunAt?: string;
+  lastSuccessAt?: string;
+  lastError?: string;
+  lastSummary?: OpenInvoiceSettlementSummary;
+}
+
+/** Summary from one open-invoice settlement sweep */
+export interface OpenInvoiceSettlementSummary {
+  checked: number;
+  paid: number;
+  received: number;
+  expired: number;
+  unchanged: number;
+  errors: number;
+}
+
+/** Response returned when manually triggering settlement reconciliation */
+export interface SettlementRunResult {
+  trigger: 'timer' | 'manual';
+  running: boolean;
+  skipped: boolean;
+  startedAt: string;
+  finishedAt?: string;
+  summary?: OpenInvoiceSettlementSummary;
+  error?: string;
 }
 
 /** Normalized Fiber node info for dashboard and diagnostics */

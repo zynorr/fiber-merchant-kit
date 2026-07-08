@@ -317,6 +317,31 @@ Returns a normalized view of the connected Fiber node, channels, and background 
 }
 ```
 
+### Run Settlement
+
+`POST /fiber/settlement/run`
+
+Runs the same open-invoice reconciliation used by the background settlement worker and returns a summary of state transitions.
+
+**Response:**
+```json
+{
+  "trigger": "manual",
+  "running": false,
+  "skipped": false,
+  "startedAt": "2026-07-08T12:00:00Z",
+  "finishedAt": "2026-07-08T12:00:01Z",
+  "summary": {
+    "checked": 2,
+    "paid": 1,
+    "received": 0,
+    "expired": 0,
+    "unchanged": 1,
+    "errors": 0
+  }
+}
+```
+
 ## Transactions
 
 ### List Transactions

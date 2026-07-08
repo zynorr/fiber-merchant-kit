@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { MerchantClient, FiberStatus } from '@fiber-merchant/sdk';
+import { MerchantClient, FiberStatus, SettlementRunResult } from '@fiber-merchant/sdk';
 import {
   Activity,
   CheckCircle2,
   Clock3,
   Layers,
   Network,
+  PlayCircle,
   RefreshCw,
   Server,
   WifiOff,
@@ -48,6 +49,9 @@ export default function FiberPage({ client }: FiberPageProps) {
   const [status, setStatus] = useState<FiberStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [settling, setSettling] = useState(false);
+  const [settlementRun, setSettlementRun] = useState<SettlementRunResult | null>(null);
+  const [settlementError, setSettlementError] = useState('');
   const [error, setError] = useState('');
 
   const loadStatus = async (soft = false) => {
@@ -62,6 +66,21 @@ export default function FiberPage({ client }: FiberPageProps) {
     } finally {
       setLoading(false);
       setRefreshing(false);
+    }
+  };
+
+  const runSettlement = async () => {
+    setSettling(true);
+    setSettlementError('');
+
+    try {
+      const result = await client.fiber.runSettlement();
+      setSettlementRun(result);
+      setStatus(await client.fiber.getStatus());
+    } catch (err) {
+      setSettlementError(err instanceof Error ? err.message : 'Failed to run settlement');
+    } finally {
+      setSettling(false);
     }
   };
 
@@ -105,15 +124,26 @@ export default function FiberPage({ client }: FiberPageProps) {
           <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Fiber Network</h1>
           <p className="text-sm text-gray-500 mt-1">Node, channel, and settlement status</p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => loadStatus(true)}
-          loading={refreshing}
-          icon={<RefreshCw className="h-4 w-4" />}
-        >
-          Refresh
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={runSettlement}
+            loading={settling}
+            icon={<PlayCircle className="h-4 w-4" />}
+          >
+            Run Settlement
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => loadStatus(true)}
+            loading={refreshing}
+            icon={<RefreshCw className="h-4 w-4" />}
+          >
+            Refresh
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
@@ -153,6 +183,65 @@ export default function FiberPage({ client }: FiberPageProps) {
           <p className="text-xs text-amber-700 mt-1">{status.error}</p>
         </div>
       )}
+
+      {settlementError && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3">
+          <p className="text-sm font-medium text-red-700">Settlement run failed</p>
+          <p className="text-xs text-red-500 mt-1">{settlementError}</p>
+        </div>
+      )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Settlement Activity</CardTitle>
+          <Badge variant={status.worker.running ? 'warning' : 'default'}>
+            {status.worker.running ? 'Running' : 'Idle'}
+          </Badge>
+        </CardHeader>
+        {(() => {
+          const summary = settlementRun?.summary || status.worker.lastSummary;
+          const runAt = settlementRun?.finishedAt || status.worker.lastSuccessAt || status.worker.lastRunAt;
+
+          return summary ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4">
+              <div>
+                <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">Checked</p>
+                <p className="mt-1 text-lg font-semibold text-gray-900">{summary.checked}</p>
+              </div>
+              <div>
+                <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">Paid</p>
+                <p className="mt-1 text-lg font-semibold text-emerald-700">{summary.paid}</p>
+              </div>
+              <div>
+                <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">Received</p>
+                <p className="mt-1 text-lg font-semibold text-sky-700">{summary.received}</p>
+              </div>
+              <div>
+                <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">Expired</p>
+                <p className="mt-1 text-lg font-semibold text-amber-700">{summary.expired}</p>
+              </div>
+              <div>
+                <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">Errors</p>
+                <p className="mt-1 text-lg font-semibold text-red-700">{summary.errors}</p>
+              </div>
+              <div>
+                <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">Last Run</p>
+                <p className="mt-1 text-sm font-medium text-gray-700">
+                  {runAt ? new Date(runAt).toLocaleTimeString() : 'Unavailable'}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3 rounded-lg border border-gray-100 bg-gray-50 px-4 py-3">
+              <Activity className="h-4 w-4 text-gray-400" />
+              <p className="text-sm text-gray-500">No settlement runs recorded</p>
+            </div>
+          );
+        })()}
+        {settlementRun?.error && (
+          <p className="mt-3 text-xs text-amber-700">{settlementRun.error}</p>
+        )}
+      </Card>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
         <Card className="xl:col-span-2">

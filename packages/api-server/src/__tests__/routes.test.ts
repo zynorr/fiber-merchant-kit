@@ -769,6 +769,22 @@ describe('API Routes', () => {
         expect(res.body.error).toMatch(/Connection refused/);
       });
     });
+
+    describe('POST /api/v1/fiber/settlement/run', () => {
+      it('runs an immediate settlement sweep', async () => {
+        mockDb.listInvoices.mockReturnValue({ items: [], total: 0 });
+
+        const res = await request(app)
+          .post('/api/v1/fiber/settlement/run')
+          .set('Authorization', `Bearer ${API_KEY}`);
+
+        expect(res.status).toBe(200);
+        expect(res.body.trigger).toBe('manual');
+        expect(res.body.skipped).toBe(false);
+        expect(res.body.summary.checked).toBe(0);
+        expect(mockDb.listInvoices).toHaveBeenCalledWith({ status: 'pending', limit: 25 });
+      });
+    });
   });
 
   // ── Stats ──────────────────────────────────────────────────
