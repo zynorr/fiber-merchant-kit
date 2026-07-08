@@ -24,6 +24,7 @@ The project solves a practical adoption gap. Fiber can move value through fast p
 | Time | Action | Evidence |
 |---|---|---|
 | 2 minutes | Read this file | Product scope, problem, solution, and demo path |
+| 3 minutes | Watch the [judge walkthrough video](docs/judge-video.md) | Problem solved, terminal run steps, verification, hosted proof, and evidence map |
 | 5 minutes | Open [docs/architecture.md](docs/architecture.md) | System boundaries, data flows, state model, and tradeoffs |
 | 8 minutes | Run `npm install && npm run dev` | API, dashboard, and demo store working together |
 | 12 minutes | Complete checkout in the demo store | Shopper path creates and completes an invoice without a merchant API key |

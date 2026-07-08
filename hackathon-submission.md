@@ -4,6 +4,8 @@ Complete payment processing infrastructure for the Fiber Network. Provides a RES
 
 For judging, start with [JUDGES.md](JUDGES.md). It contains the fastest review path, demo script, architecture links, and implementation evidence map.
 
+Project walkthrough video for judges: [docs/judge-video.md](docs/judge-video.md). It shows the problem solved, repository run steps, terminal verification, hosted demo, and evidence map without adding video weight to the README.
+
 ---
 
 ## Table of Contents
