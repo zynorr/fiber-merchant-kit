@@ -117,7 +117,7 @@ In demo mode, the store exposes a payment simulation action so judges can comple
 | Webhook outbox/retry/signing/logs/replay | `packages/api-server/src/services/webhook-delivery.ts`, `packages/api-server/src/db/index.ts`, `packages/admin-dashboard/src/pages/WebhooksPage.tsx` |
 | Webhook API and delivery log response | `packages/api-server/src/routes/webhooks.ts` |
 | Auth context, roles, and key rotation | `packages/api-server/src/middleware/auth.ts`, `packages/api-server/src/routes/merchant.ts` |
-| Docker and PostgreSQL production path | `Dockerfile`, `docker-compose.yml`, `.env.production.example`, `docs/postgres-schema.sql` |
+| Docker and PostgreSQL production path | `Dockerfile`, `docker-compose.yml`, `.env.production.example`, `docs/postgres-schema.sql`, GitHub Actions container build |
 | OpenAPI contract | `docs/openapi.json` |
 | Dashboard workflows | `packages/admin-dashboard/src/pages` |
 | Demo checkout | `packages/demo-store/src/App.tsx` |
@@ -148,6 +148,8 @@ npm run demo:smoke
 npm run test --workspaces --if-present
 npm run lint --workspaces --if-present
 npm run build --workspaces
+docker compose --profile postgres config
+docker build --target api -t fiber-merchant-kit-api:local .
 ```
 
 During development, the project was verified with:
@@ -161,6 +163,7 @@ During development, the project was verified with:
 - Live demo checkout: invoice `ebbd43bf-6b04-4248-a670-b9476f0bd92d` paid and transaction `987865e5-6d8c-47df-9d8c-ea906598a3b8` promoted to `Succeeded`.
 - Fiber testnet smoke against FNN `v0.8.1`: `node_info`, `list_channels`, optional `new_invoice`, graph sync, and Merchant API live-mode invoice creation passed.
 - Funded Fiber testnet settlement: payment hash `0xe28512a5139dcd8ce648d6ab8e2a6924f4ce1f64d1ce52a45212689dca859864` reached `Success` for a 1 CKB `Fibt` payment routed through public node1.
+- GitHub Actions container validation: production Compose config with the PostgreSQL profile plus the API Docker image build.
 
 ## Senior Engineering Notes
 

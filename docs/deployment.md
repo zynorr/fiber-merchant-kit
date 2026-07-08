@@ -15,6 +15,8 @@ docker compose up --build api
 
 The API listens on `http://localhost:3001` and stores SQLite data in the `merchant-data` volume.
 
+GitHub Actions validates this deployment path by rendering the Compose file with the PostgreSQL profile and building the production `api` Docker target.
+
 ## Fiber RPC Failover
 
 Use `FIBER_NODE_RPC_URLS` for multiple private FNN endpoints:

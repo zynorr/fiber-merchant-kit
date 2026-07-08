@@ -93,7 +93,7 @@ Full architecture: [docs/architecture.md](docs/architecture.md)
 | [docs/api-reference.md](docs/api-reference.md) | Endpoint reference and response shapes |
 | [docs/openapi.json](docs/openapi.json) | Machine-readable OpenAPI 3.0 contract for the Merchant API |
 | [docs/getting-started.md](docs/getting-started.md) | Local setup walkthrough |
-| [docs/deployment.md](docs/deployment.md) | Docker, production env, failover, and PostgreSQL deployment notes |
+| [docs/deployment.md](docs/deployment.md) | Docker, production env, failover, PostgreSQL, and CI-validated container deployment notes |
 | [docs/demo-evidence.md](docs/demo-evidence.md) | Live demo checkout evidence with paid transaction |
 | [docs/testnet-smoke.md](docs/testnet-smoke.md) | Real Fiber testnet smoke path and funded settlement evidence |
 | [JUDGES.md](JUDGES.md) | Hackathon review guide |
@@ -248,11 +248,15 @@ npm run test --workspaces --if-present
 npm run lint --workspaces --if-present
 npm run build --workspaces
 npm run testnet:smoke
+docker compose --profile postgres config
+docker build --target api -t fiber-merchant-kit-api:local .
 ```
 
 `npm run demo:smoke` starts the API in isolated demo mode with a temporary SQLite database and local webhook receiver. It verifies the public index, health endpoint, invoice creation, HMAC-signed webhooks, demo payment simulation, transaction recording, stats, and manual settlement sweep.
 
 The testnet smoke command requires a real FNN RPC endpoint and is documented in [docs/testnet-smoke.md](docs/testnet-smoke.md). Without that endpoint, it exits with a clear configuration error instead of pretending demo mode is a chain-backed test.
+
+GitHub Actions also validates the production Compose file, including the PostgreSQL profile, and builds the production API Docker image from `Dockerfile`.
 
 Latest smoke result: on July 7, 2026, the adapter and Merchant API passed live-mode invoice creation against a local FNN `v0.8.1` testnet node using the official config. The same evidence file now includes a funded live Fiber testnet settlement: public `ChannelReady` channels, faucet funding transactions, and payment hash `0xe28512a5139dcd8ce648d6ab8e2a6924f4ce1f64d1ce52a45212689dca859864` with status `Success`.
 
