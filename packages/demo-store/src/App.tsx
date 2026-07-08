@@ -298,7 +298,7 @@ export default function App() {
   const modeLabel = apiMode === 'checking'
     ? 'Checking API'
     : apiMode === 'demo'
-      ? 'Demo mode'
+      ? 'Demo mode (simulated)'
       : apiMode === 'live'
         ? 'Live node'
         : 'API offline';
@@ -310,6 +310,13 @@ export default function App() {
       : apiMode === 'offline'
         ? 'bg-red-50 text-red-700 border-red-200'
         : 'bg-gray-50 text-gray-600 border-gray-200';
+
+  const isDemoMode = apiMode === 'demo';
+  const successTitle = isDemoMode ? 'Demo payment recorded' : 'Payment successful';
+  const successMessage = isDemoMode
+    ? 'No CKB was transferred. The hosted demo marked this invoice paid so the merchant workflow can be reviewed.'
+    : 'The invoice is paid and the order is ready for fulfillment.';
+  const amountLabel = isDemoMode ? 'Demo amount' : 'Paid amount';
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -502,6 +509,14 @@ export default function App() {
               </div>
               <h1 className="mb-2 text-2xl font-black text-slate-950">Invoice ready</h1>
               <p className="mb-5 text-sm text-slate-500">Status: <span className="font-bold text-slate-700">{invoiceStatus}</span></p>
+              {isDemoMode && (
+                <div className="mb-5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-left">
+                  <p className="text-xs font-bold uppercase tracking-wide text-amber-700">Demo simulator</p>
+                  <p className="mt-1 text-sm leading-relaxed text-amber-800">
+                    No real CKB will move. This demo can mark the invoice paid to show checkout, dashboard, and webhook behavior.
+                  </p>
+                </div>
+              )}
               <div className="mb-5 rounded-lg border border-sky-100 bg-sky-50 p-5">
                 <p className="text-4xl font-black text-sky-700">{checkoutTotalCkb}</p>
                 <p className="text-xs font-bold uppercase tracking-wide text-sky-500">CKB</p>
@@ -534,7 +549,7 @@ export default function App() {
                     data-testid="simulate-payment"
                   >
                     {simulating ? <Loader2 className="h-4 w-4 animate-spin" /> : <CreditCard className="h-4 w-4" />}
-                    Simulate payment
+                    Simulate demo payment
                   </button>
                 )}
               </div>
@@ -570,10 +585,10 @@ export default function App() {
             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50">
               <CheckCircle2 className="h-8 w-8 text-emerald-600" />
             </div>
-            <h1 className="mb-2 text-2xl font-black text-emerald-700">Payment successful</h1>
-            <p className="mb-5 text-sm text-slate-500">The invoice is paid and the order is ready for fulfillment.</p>
+            <h1 className="mb-2 text-2xl font-black text-emerald-700">{successTitle}</h1>
+            <p className="mb-5 text-sm text-slate-500">{successMessage}</p>
             <div className="mb-5 rounded-lg border border-emerald-100 bg-emerald-50 p-4">
-              <p className="text-xs font-bold uppercase tracking-wide text-emerald-600">Paid amount</p>
+              <p className="text-xs font-bold uppercase tracking-wide text-emerald-600">{amountLabel}</p>
               <p className="text-2xl font-black text-emerald-700">{checkoutTotalCkb} CKB</p>
             </div>
             <code className="mb-6 block break-all rounded-lg bg-slate-50 p-3 text-xs text-slate-500">{invoiceId}</code>
