@@ -8,10 +8,12 @@ Fiber Merchant Kit is a Stripe-style merchant layer for the Fiber Network. It le
 |---|---|
 | What is this? | Merchant payment infrastructure for Fiber Network: REST API, dashboard, demo store, webhooks, and TypeScript/Python SDKs |
 | What problem does it solve? | Fiber has fast payment channels, but merchants still need familiar checkout, invoice lifecycle, fulfillment, and operational tooling |
+| Hackathon category | Merchant, Liquidity, LSP, and Multi-Asset Infrastructure |
 | Who is it for? | Developers building stores, SaaS billing, games, marketplaces, wallets, and apps that want to accept Fiber payments |
 | What can judges run quickly? | `npm install && npm run dev` starts the API, merchant dashboard, and keyless demo store |
 | What can judges open when hosted? | [fiber-merchant-kit-zynorr.fly.dev](https://fiber-merchant-kit-zynorr.fly.dev) serves the API, dashboard at `/dashboard`, and FiberStore at `/store` from one URL |
 | What proves live-network readiness? | [docs/testnet-smoke.md](docs/testnet-smoke.md) records real FNN testnet smoke checks plus funded settlement evidence |
+| License | MIT |
 
 ## Judge Fast Path
 

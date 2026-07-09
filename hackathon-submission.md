@@ -8,6 +8,33 @@ Project walkthrough video for judges: [docs/judge-video.md](docs/judge-video.md)
 
 ---
 
+## Hackathon Submission Facts
+
+| Field | Value |
+|---|---|
+| Selected category | Merchant, Liquidity, LSP, and Multi-Asset Infrastructure |
+| Team members | zynorr |
+| Repository | `https://github.com/zynorr/fiber-merchant-kit` |
+| Hosted demo | `https://fiber-merchant-kit-zynorr.fly.dev` |
+| Video demonstration | [docs/judge-video.md](docs/judge-video.md) |
+| License | MIT, see [LICENSE](LICENSE) |
+| Project type | Reusable Fiber Network infrastructure, not a consumer product |
+| Demo surface | FiberStore is a demo checkout proving the infrastructure layer |
+| AI usage disclosure | AI assistance was used for implementation support, documentation, verification scripts, and video polish; the project was iterated and tested with human direction |
+| AI allowance claim | If claiming the hackathon allowance, submit the tooling receipt through CKBoost separately |
+
+### Working, Simulated, And Live-Tested Scope
+
+| Scope | Status |
+|---|---|
+| Merchant API, dashboard, SDKs, webhooks, retry logs, checkout, stats, and transactions | Working locally and in the hosted demo |
+| Demo Fiber client and payment simulation | Intentional judge/demo mode for evaluating the merchant flow without a funded node |
+| Real FNN RPC readiness | Documented and smoke-tested; see [docs/testnet-smoke.md](docs/testnet-smoke.md) |
+| Funded Fiber testnet settlement | Recorded evidence in [docs/testnet-smoke.md](docs/testnet-smoke.md) |
+| Production deployment path | Docker, failover envs, PostgreSQL schema, and deployment notes documented |
+
+---
+
 ## Table of Contents
 
 - [Problem & Solution](#problem--solution)

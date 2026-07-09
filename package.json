@@ -2,6 +2,7 @@
   "name": "fiber-merchant-kit",
   "version": "1.0.0",
   "private": true,
+  "license": "MIT",
   "description": "Fiber Merchant Kit — Payment processing infrastructure for Fiber Network",
   "workspaces": [
     "packages/sdk-typescript",

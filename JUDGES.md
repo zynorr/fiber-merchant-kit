@@ -8,6 +8,8 @@ Fiber Merchant Kit turns low-level Fiber Network node RPC into merchant-ready pa
 
 The project solves a practical adoption gap. Fiber can move value through fast payment channels, but merchants still need the surrounding product layer that lets an app create an invoice, show a payment request, fulfill an order, and debug payment operations without exposing node credentials.
 
+Selected hackathon category: **Merchant, Liquidity, LSP, and Multi-Asset Infrastructure**. FiberStore is only the demo surface; the submission is the reusable merchant infrastructure layer around Fiber payments.
+
 ## What This Submission Demonstrates
 
 | Area | What To Look For |
