@@ -325,6 +325,7 @@ Demo mode is intentionally frictionless for judging. For production:
 
 ## Links
 
+- [CKBoost Submission Answers](SUBMISSION.md)
 - [Judge Guide](JUDGES.md)
 - [Architecture](docs/architecture.md)
 - [Getting Started](docs/getting-started.md)

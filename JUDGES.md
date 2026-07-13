@@ -229,6 +229,7 @@ The current architecture is intentionally hackathon-friendly and production-shap
 
 ## Useful Links
 
+- [CKBoost Submission Answers](SUBMISSION.md)
 - [README](README.md)
 - [Architecture](docs/architecture.md)
 - [Getting Started](docs/getting-started.md)
