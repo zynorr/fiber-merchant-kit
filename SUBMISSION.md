@@ -181,15 +181,9 @@ The repository is fully open source under the MIT license.
 
 ### 2. Video Link
 
-Repo-hosted walkthrough page:
-
-`https://github.com/zynorr/fiber-merchant-kit/blob/main/docs/judge-video.md`
-
-Direct MP4 in the repo:
 
 `https://github.com/zynorr/fiber-merchant-kit/blob/main/docs/assets/fiber-merchant-kit-project-run-3-minute.mp4`
 
-If an external media-sharing link is uploaded later, submit that URL here and keep the repo-hosted video as backup.
 
 ### 3. Hosted Setup
 
